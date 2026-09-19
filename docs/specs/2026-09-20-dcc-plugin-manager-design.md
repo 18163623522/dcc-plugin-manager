@@ -143,6 +143,10 @@ Tauri 2 壳
 - 主界面导航 ← sidebar-nav + search
 - 版本对比 ← diff-table（更新时旧→新版本差异）
 
+### 6.2 控件视觉规范：WinUI 3 / Fluent（ui-reference/winui3/）
+
+从 microsoft-ui-xaml（MIT）按需提取 20 个 themeresources XAML（main @ da997f8）。分工：obs-float-bar 定整体基调（毛玻璃外壳/语义色/密度，冲突时优先），beautifului 定组件交互形态，WinUI 3 补控件级视觉细节——四态（Normal/PointerOver/Pressed/Disabled）、圆角 token（控件 4px/弹层 8px，嵌在 16px 外壳内）、亚克力材质参数（微调 backdrop-filter 的着色/噪声）、侧栏选中态、ContentDialog 遮罩规范。实现时查 VisualState 换算成 CSS 变量，不照搬 XAML。
+
 ## 7. 测试
 
 - Rust 单测：LauncherInstalled.dat 解析（用本机真实文件快照做 fixture）、uplugin/zip 结构探测、registry 读写与迁移。
