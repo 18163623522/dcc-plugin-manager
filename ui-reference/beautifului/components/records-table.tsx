@@ -1050,21 +1050,3 @@ export default function RecordsTable({ rows = INITIAL_ROWS, fill = false }: { ro
     </div>
   );
 }
-1e:T185a,"use client";
-
-import { useState } from "react";
-
-/* ─────────────────────────────────────────────────────────
- * FILTER TABLE
- * Status chips directly filter the task table.
- * ───────────────────────────────────────────────────────── */
-
-type Status = "todo" | "progress" | "done";
-
-export type TableRow = { task: string; date: string; status: Status; owner: string };
-
-export type FilterTableLabels = {
-  columns: { task: string; date: string; status: string; owner: string };
-};
-
-const FILTERS: { key: "all" | Status; label

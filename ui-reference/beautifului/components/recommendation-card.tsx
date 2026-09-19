@@ -192,11 +192,3 @@ export default function RecommendationCard({
     </div>
   );
 }
-1b:T116e,"use client";
-
-import { useEffect, useState } from "react";
-
-/* ─────────────────────────────────────────────────────────
- * CONTEXT CARDS
- * Retrieved chunks enter once, then remain available.
- * ─────────────────────────

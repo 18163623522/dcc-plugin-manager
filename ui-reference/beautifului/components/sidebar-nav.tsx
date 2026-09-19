@@ -447,18 +447,3 @@ export default function SidebarNav({
     </aside>
   );
 }
-20:T120b,"use client";
-
-import { useState } from "react";
-import GlideMenu from "@/components/primitives/GlideMenu";
-
-/* ─────────────────────────────────────────────────────────
- * SEARCH — command search with live filtering.
- * The field, clear action, and results are directly usable.
- * ───────────────────────────────────────────────────────── */
-
-export type SearchItem = string;
-
-export type SearchListLabels = {
-  placeholder: string;
-  ariaLabel: stri

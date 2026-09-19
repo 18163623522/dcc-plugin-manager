@@ -240,9 +240,3 @@ export default function ChatComposer({
     </div>
   );
 }
-19:T7900,"use client";
-
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { createShader, playSweep, accentChain, ACCENTS } from "glimm";
-
-/* The built-in "prism" palette is only cyan→indigo→magenta, so a swee

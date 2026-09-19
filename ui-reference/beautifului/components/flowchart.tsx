@@ -536,11 +536,3 @@ export default function Flowchart({ steps = NODES }: { steps?: StepNode[]; varia
     </div>
   );
 }
-22:T4ee8,"use client";
-
-import { Liveline, type LivelinePoint, type LivelineSeries } from "liveline";
-import { useEffect, useMemo, useState } from "react";
-
-/* ─────────────────────────────────────────────────────────
- * INSIGHT CARDS
- * Embedded mini-visualizations in an "Insights N

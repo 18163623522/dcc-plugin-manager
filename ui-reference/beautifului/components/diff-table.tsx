@@ -248,10 +248,3 @@ export default function DiffTable({
     </div>
   );
 }
-1d:Teaa7,"use client";
-
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import GlideMenu from "@/components/primitives/GlideMenu";
-
-/* ─────────────────────────────────────────────────────────
- * RECORD

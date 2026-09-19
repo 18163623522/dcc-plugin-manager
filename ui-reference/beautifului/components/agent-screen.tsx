@@ -352,4 +352,3 @@ export default function AgentScreen({
     </div>
   );
 }
-d:["$","div",null,{"className":"min-w-0","children":[["$","$L11",null,{"sources":{"loading-state":"$12","thinking-state":"$13","streaming-text":"$14","approval-card":"$15","tool-chips":"$16","task-rows":"$17","chat-composer":"$18","prompt-bar":"$19","recommendation-card":"$1

@@ -231,11 +231,3 @@ export default function CodeBlock({
     </div>
   );
 }
-24:T3056,"use client";
-
-import { useRef, useState } from "react";
-import GlideMenu from "@/components/primitives/GlideMenu";
-
-/* ─────────────────────────────────────────────────────────
- * FINE-TUNE CARD — compact interactive inspector.
- * Nu

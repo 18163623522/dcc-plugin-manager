@@ -142,8 +142,3 @@ export default function FilterTable({
     </div>
   );
 }
-1f:T494f,"use client";
-
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { createPortal } from "react-dom";
-import { IconArrowBoxLeft } from "@central-icons-react/round-outlined-rad

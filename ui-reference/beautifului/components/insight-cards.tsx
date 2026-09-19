@@ -540,11 +540,3 @@ export default function InsightCards({
     </div>
   );
 }
-23:T275c,"use client";
-
-import { useCallback, useState, type ReactNode } from "react";
-
-/* ─────────────────────────────────────────────────────────
- * CODE BLOCK
- * A light editor panel with two versions (switch in the card):
- *   · Code — a line-numbered

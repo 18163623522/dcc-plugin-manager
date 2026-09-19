@@ -118,11 +118,3 @@ export default function ContextCards({
     </div>
   );
 }
-1c:T2d5d,"use client";
-
-import { useEffect, useState } from "react";
-import { Button } from "@/components/atoms/Button";
-
-/* ─────────────────────────────────────────────────────────
- * DIFF TABLE
- * The proposed edit plays once

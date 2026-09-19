@@ -114,10 +114,3 @@ export default function SearchList({
     </div>
   );
 }
-21:T44f2,"use client";
-
-import { useEffect, useRef, useState } from "react";
-import { useLayoutEffect } from "react";
-
-/* ─────────────────────────────────────────────────────────
- * FLOWCHART — an agent workflow on a dotted editor 

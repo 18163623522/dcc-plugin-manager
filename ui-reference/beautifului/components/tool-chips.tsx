@@ -334,13 +334,3 @@ export default function ToolChips({
     </div>
   );
 }
-17:T282c,"use client";
-
-import { useEffect, useState } from "react";
-
-/* ─────────────────────────────────────────────────────────
- * TASK ROWS
- *
- *     0ms   rows enter staggered (80ms apart)
- *   600ms   row 1 ring sweeps 0 → 66%
- *  1500ms 

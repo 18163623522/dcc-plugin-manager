@@ -417,11 +417,3 @@ export default function ApprovalCard({
     </div>
   );
 }
-16:T3783,"use client";
-
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
-
-/* ─────────────────────────────────────────────────────────
- * TOOL CHIPS
- * An agent run as compact rows: tool calls with inli

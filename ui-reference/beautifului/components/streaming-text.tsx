@@ -250,10 +250,3 @@ export default function StreamingText({
     </div>
   );
 }
-15:T4168,"use client";
-
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import { Button } from "@/components/atoms/Button";
-import GlideMenu from "@/components/primitives/GlideMenu";
-
-/* ─

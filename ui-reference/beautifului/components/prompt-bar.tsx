@@ -710,15 +710,3 @@ export default function PromptBar({
     </div>
   );
 }
-1a:T179b,"use client";
-
-import { useState } from "react";
-import { Button, type ButtonVariant } from "@/components/atoms/Button";
-import { EntityChip } from "@/components/atoms/EntityChip";
-import { ValuePill } from "@/components/atoms/ValuePill";
-
-/* ─────────────────────────────────────────────────────────
- * RECOMMENDATION CARD
- * The card holds its shape. Pressing "Alternatives" opens a
- * new drawer listing the other options; picking one promotes
- * it to the recommendation

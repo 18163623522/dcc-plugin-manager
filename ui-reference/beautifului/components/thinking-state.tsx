@@ -299,11 +299,3 @@ export default function ThinkingState({
     </div>
   );
 }
-14:T2917,"use client";
-
-import { useEffect, useState } from "react";
-
-/* ─────────────────────────────────────────────────────────
- * STREAMING TEXT
- * Words resolve out of blur, inline citations appear in
- * context, then actions and fol

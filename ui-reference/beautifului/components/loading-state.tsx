@@ -150,11 +150,3 @@ export default function LoadingState({
     </div>
   );
 }
-13:T2d4c,"use client";
-
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-
-/* ─────────────────────────────────────────────────────────
- * THINKING — expandable agent trace, four variants
- *
- *   Steps 

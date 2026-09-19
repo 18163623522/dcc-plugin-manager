@@ -272,10 +272,3 @@ export default function TaskRows({
     </div>
   );
 }
-18:T21fb,"use client";
-
-import { useEffect, useRef, useState } from "react";
-
-/* ─────────────────────────────────────────────────────────
- * CHAT — interactive panel with tabs, replies, and composer.
- * The reply sequence begins only after the

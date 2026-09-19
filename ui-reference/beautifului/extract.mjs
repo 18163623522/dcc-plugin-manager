@@ -1,73 +1,50 @@
-// 从 beautifului.dev 首页 HTML 的 Next.js RSC payload 中提取 21 个组件的源码
+// 最终版：T 行 hexlen = 解码文本的 UTF-8 字节长度。按字节截取再解码。
 import fs from 'fs';
 
 const html = fs.readFileSync('home.html', 'utf8');
-
-// 1. 拼接 flight 流：所有 self.__next_f.push([1,"..."]) 的字符串参数
-const chunks = [];
+const parts = [];
 for (const m of html.matchAll(/self\.__next_f\.push\(\[1,("(?:[^"\\]|\\.)*")\]\)/g)) {
-  try { chunks.push(JSON.parse(m[1])); } catch {}
+  parts.push(m[1].slice(1, -1));
 }
-const flight = chunks.join('');
-console.log('flight bytes:', flight.length);
+const flight = parts.map(p => { try { return JSON.parse('"' + p + '"'); } catch { return ''; } }).join('');
+const sources = JSON.parse(flight.match(/"sources":\{[^{}]*\}/)[0].slice('"sources":'.length));
 
-// 2. 解析顶层数据行： id:"string" / id:[...] / id:{...} / id:I...
-function parseRow(id) {
-  const marker = `${id}:`;
-  const i = flight.indexOf(marker);
-  if (i < 0) return null;
-  let j = i + marker.length;
-  const c = flight[j];
-  let raw;
-  if (c === 'T') {                       // 文本行： id:T<hexlen>,<hexlen 字节原始文本>
-    const comma = flight.indexOf(',', j);
-    const len = parseInt(flight.slice(j + 1, comma), 16);
-    return flight.slice(comma + 1, comma + 1 + len);
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+function extract(id) {
+  const re = new RegExp(`(?:^|\\n)${id}:T([0-9a-f]+),`, 'g');
+  let m, hit = null;
+  while ((m = re.exec(flight))) {
+    if (hit) return { error: 'ambiguous' };
+    hit = m;
   }
-  if (c === '"') {                       // 字符串行：扫到未转义引号
-    let k = j + 1;
-    while (k < flight.length) {
-      if (flight[k] === '\\') { k += 2; continue; }
-      if (flight[k] === '"') break;
-      k++;
-    }
-    raw = flight.slice(j, k + 1);
-    try { return JSON.parse(raw); } catch { return raw; }
-  }
-  // 非字符串行（数组/对象）：配平括号
-  const open = c, close = c === '[' ? ']' : '}';
-  let depth = 0, k = j;
-  let inStr = false;
-  while (k < flight.length) {
-    const ch = flight[k];
-    if (inStr) { if (ch === '\\') { k += 2; continue; } if (ch === '"') inStr = false; k++; continue; }
-    if (ch === '"') inStr = true;
-    else if (ch === open) depth++;
-    else if (ch === close) { depth--; if (depth === 0) break; }
-    k++;
-  }
-  raw = flight.slice(j, k + 1);
-  try { return JSON.parse(raw); } catch { return raw; }
+  if (!hit) return { error: 'notfound' };
+  const start = hit.index + hit[0].length;
+  const hexlen = parseInt(hit[1], 16);
+  // 候选区（富余），按 UTF-8 字节精确截到 hexlen
+  const candidate = flight.slice(start, start + hexlen + 4096);
+  let buf = enc.encode(candidate);
+  if (buf.length < hexlen) return { error: 'shortstream' };
+  let cut = hexlen;
+  // 防止把多字节字符切半
+  while (cut > 0 && (buf[cut] & 0xC0) === 0x80) cut--;
+  const text = dec.decode(buf.subarray(0, cut));
+  const exact = enc.encode(text).length === hexlen;
+  return { text, hexlen, exact };
 }
 
-// 3. 找 sources 映射
-const srcMatch = flight.match(/"sources":\{[^{}]*\}/);
-if (!srcMatch) { console.error('sources map not found'); process.exit(1); }
-const sources = JSON.parse(srcMatch[0].slice('"sources":'.length));
-console.log('components:', Object.keys(sources).length);
-
-// 4. 逐个提取：$12 → 行 12
-const outDir = 'components';
-fs.mkdirSync(outDir, { recursive: true });
-const index = [];
+const out = "components";
+fs.rmSync(out, { recursive: true, force: true });
+fs.mkdirSync(out);
+let bad = 0;
 for (const [slug, ref] of Object.entries(sources)) {
-  const id = ref.replace('$', '');
-  const val = parseRow(id);
-  if (val == null) { console.log('MISS', slug, ref); continue; }
-  const code = typeof val === 'string' ? val : JSON.stringify(val);
-  const file = `${outDir}/${slug}.tsx`;
-  fs.writeFileSync(file, code, 'utf8');
-  index.push({ slug, bytes: code.length, lines: code.split('\n').length });
+  const r = extract(ref.slice(1));
+  if (r.error) { console.log('FAIL', slug, r.error); bad++; continue; }
+  fs.writeFileSync(`${out}/${slug}.tsx`, r.text, 'utf8');
+  const ok = r.exact && r.text.startsWith('"use client"') && /export /.test(r.text) && r.text.trimEnd().endsWith('}');
+  if (!ok) bad++;
+  console.log(ok ? 'OK ' : 'BAD', String(r.hexlen).padStart(6), 'bytesExact=' + r.exact, slug,
+    !ok ? 'end=' + JSON.stringify(r.text.slice(-40)) : '');
 }
-index.forEach(x => console.log(String(x.bytes).padStart(7), String(x.lines).padStart(4), x.slug));
-console.log('total:', index.length);
+console.log(bad === 0 ? 'ALL 21 CLEAN ✓' : bad + ' bad');
