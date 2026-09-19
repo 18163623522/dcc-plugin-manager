@@ -131,6 +131,18 @@ Tauri 2 壳
 - Toast：底部弹出，圆角 12px，可带"打开目录"动作。
 - 动效：`cubic-bezier(0.16,1,0.3,1)` 面板展开；进行中徽标呼吸。
 
+### 6.1 组件级参考：Beautiful UI（ui-reference/beautifului/）
+
+来源 beautifului.dev（MIT）的 21 个 React 组件源码已提取入库，作为组件交互/动效的移植蓝本（Vue 语义重写，不直接引用）。与 obs-float-bar 视觉基调叠加使用：obs-float-bar 定视觉 token（色彩/毛玻璃/密度），Beautiful UI 定组件形态。重点映射：
+
+- 插件列表主表 ← records-table / filter-table（过滤、徽标、批量选择）
+- 批量更新/卸载 ← selection-actions（多选浮出操作条）
+- 安装进行中 ← loading-state（pixel-grid）+ task-rows（多引擎安装队列）
+- 构建日志 ← code-block + streaming-text（逐行浮现）
+- 卸载确认 ← approval-card（列路径确认）
+- 主界面导航 ← sidebar-nav + search
+- 版本对比 ← diff-table（更新时旧→新版本差异）
+
 ## 7. 测试
 
 - Rust 单测：LauncherInstalled.dat 解析（用本机真实文件快照做 fixture）、uplugin/zip 结构探测、registry 读写与迁移。
