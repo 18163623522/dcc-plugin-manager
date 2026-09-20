@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, shallowRef, type Component } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { inTauri } from "./api";
 import PluginsView from "./views/Plugins.vue";
 import EnginesView from "./views/Engines.vue";
 import SettingsView from "./views/Settings.vue";
 
-const inTauri = "__TAURI_INTERNALS__" in window;
 const win = inTauri ? getCurrentWindow() : null;
 if (!inTauri) {
   // 浏览器预览模式：无 Tauri 壳，铺背景展示毛玻璃效果
