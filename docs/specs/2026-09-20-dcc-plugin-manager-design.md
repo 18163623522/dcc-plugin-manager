@@ -20,7 +20,7 @@
 | 决策点 | 结论 |
 |---|---|
 | 技术栈 | Tauri 2（前端 Vue3 + Vite + TS，后端 Rust） |
-| v1 范围 | UE + Houdini 同时支持 |
+| v1 范围 | UE + Houdini 同时支持；Obsidian 作为 M5 追加（2026-09-20 确认） |
 | 插件来源 | GitHub 仓库 + 本地目录 |
 | 更新来源 | GitHub Release 附件优先，无附件则源码构建兜底 |
 | UE 安装位置 | 引擎全局 `Engine\Plugins\Marketplace\<Name>` |
@@ -49,6 +49,7 @@ Tauri 2 壳
 
 - **UE**：解析 `C:\ProgramData\Epic\UnrealEngineLauncher\LauncherInstalled.dat`（多引擎去重出版本号 4.26/5.1/…/5.8 与根目录）+ 设置页可追加自定义路径（`Engine\Build\BatchFiles\RunUAT.bat` 存在性校验）。
 - **Houdini**：注册表 `HKLM\SOFTWARE\Side Effects Software\Houdini\*` + 标准目录扫描，得到版本与用户 packages 目录（`%USERPROFILE%\Documents\houdini<major.minor>\packages`，尊重 `HOUDINI_USER_PREF_DIR` 覆盖）。
+- **Obsidian（M5）**：解析 `%APPDATA%\obsidian\obsidian.json` 的 `vaults` 映射（id → 库路径）枚举全部 vault；应用版本从 `%APPDATA%\obsidian\` 读取，供 manifest `minAppVersion` 兼容判断。vault 即"引擎"——安装目标是 `<vault>\.obsidian\plugins\<id>\`。
 
 ### 3.2 sources（来源管理）
 
@@ -203,3 +204,21 @@ UI：插件行引擎徽标四态（✅已装 / ✅可装(来源分支名) / ⚠�
 2. GitHub 源 + Release 下载安装 + 更新检查 + **compat 版本矩阵（分支解析 + EngineVersion 确认）**
 3. RunUAT BuildPlugin 构建流水线（日志流）+ **preflight 诊断（工具链/引擎完整性/文件锁）** + 未验证引擎试编译
 4. Houdini 检测 + 安装 + packages json 生成 + 卸载
+5. **Obsidian 管理（2026-09-20 追加）**：vault 检测（obsidian.json）+ 插件安装（Release 散件 main.js/manifest.json/styles.css 优先，源码 `pnpm i && pnpm build` 兜底）+ manifest.json 识别（id/version/minAppVersion）+ 按 vault 多目标安装/卸载 + `community-plugins.json` 启用状态提示
+
+### 8.1 里程碑 5：Obsidian 插件管理细则
+
+与 UE/Houdini 的映射关系（复用既有模块）：
+
+| 环节 | UE/Houdini | Obsidian |
+|---|---|---|
+| "引擎" | 引擎安装 | vault（一个 Obsidian 库 = 一个安装目标） |
+| 检测 | LauncherInstalled.dat / 注册表 | `%APPDATA%\obsidian\obsidian.json` → `vaults` 路径映射 |
+| 插件识别 | .uplugin / otls-hda 约定 | `manifest.json`（id/name/version/minAppVersion/isDesktopOnly） |
+| 安装落位 | Marketplace 目录 / packages 目录 | `<vault>\.obsidian\plugins\<id>\`（main.js + manifest.json + styles.css） |
+| Release 形态 | zip 附件 | **散件附件**（main.js、manifest.json、styles.css 各自独立——Obsidian 社区惯例，install::release 需扩展非 zip 资产收集） |
+| 源码构建 | RunUAT BuildPlugin | `pnpm install && pnpm run build`（产物取 main.js/manifest.json/styles.css） |
+| 兼容性 | 分支名 + EngineVersion | manifest `minAppVersion` ≤ 应用版本（应用版本读 `%APPDATA%\obsidian\`） |
+| 卸载 | 删目录 + packages json | 删 vault 插件目录；`community-plugins.json` 的启用项由用户在 Obsidian 内关闭（写回会在运行中被覆盖，不碰） |
+
+已知边界（v1 不做）：不代改 `community-plugins.json`（Obsidian 运行中会回写，产生竞态）；启用动作由用户在 Obsidian 设置里完成，软件装完提示"在 Obsidian 中启用"。

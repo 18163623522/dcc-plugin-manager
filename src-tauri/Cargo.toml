@@ -1,0 +1,41 @@
+[package]
+name = "dcc-plugin-manager"
+version = "0.1.0"
+description = "DCC 插件管理安装器：UE / Houdini 插件一键安装、版本管理、更新、按引擎卸载"
+authors = ["pengxiwei"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to only be an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "dcc_plugin_manager_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+winreg = "0.52"
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1"
+windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem", "Win32_Foundation"] }
+
+[dev-dependencies]
+# 测试专用：制造 ERROR_SHARING_VIOLATION 文件锁
+windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem", "Win32_Foundation", "Win32_Security"] }
+
+# Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
