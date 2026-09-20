@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod compat;
 pub mod detect;
 pub mod install;
 pub mod registry;

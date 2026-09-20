@@ -25,6 +25,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 winreg = "0.52"
 chrono = { version = "0.4", features = ["serde"] }
+regex = "1"
 
 [dev-dependencies]
 # 测试专用：制造 ERROR_SHARING_VIOLATION 文件锁
