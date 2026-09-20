@@ -212,6 +212,25 @@ pub struct InstalledTarget {
 - 引擎页 vault 分组；安装对话框 vault 多选 + minAppVersion 徽标；宿主筛选 chip 加 Obsidian。
 - 验收：真机 vault 列表 + 双 vault 安装。
 
+## 里程碑 6：收尾完整化（2026-09-20 追加，M1–M5 完成后）
+
+设计文档中尚未落地的交互补齐 + 可交付打包。
+
+### Task 6.1 设置页落地
+- Create: `src-tauri/src/settings.rs`（`settings.json`：`{extra_ue_roots: []}`，损坏容错同 registry）
+- Commands: `get_settings`/`save_settings`（自定义 UE 引擎根目录，detect_engines 读取生效）、
+  `cache_stats`（repos/releases/build 三目录大小）、`clear_cache(kinds)`（只删 cache 子目录，本地源不受影响）、
+  `env_status`（gh / curl / pnpm 可用性）。
+- Settings.vue：缓存三行 + 清理按钮（显示将释放空间）；引擎根目录列表增删；环境徽标。
+
+### Task 6.2 列表引擎筛选维度（设计 §4.1 遗留）
+- FilterBar 增加引擎 chip 组（检测到的 UE 版本 + Houdini 版本 + vault 名动态生成）；
+  选中某引擎 → 列表只显示已装该引擎的插件；兼容徽标在该维度下简化为单态。
+
+### Task 6.3 打包
+- `pnpm tauri build`（release 无控制台黑窗），产物路径报告。
+- 验收：release exe 双击可用，全流程不依赖 dev server。
+
 ---
 
 ## 验证策略（贯穿）

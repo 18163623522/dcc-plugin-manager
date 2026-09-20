@@ -21,6 +21,8 @@ const GIT_SOURCES: &[&str] = &[
     "https://github.com/18163623522/BetterMaterialWires",
     "https://github.com/18163623522/ue426-advanced-comments",
     "https://github.com/18163623522/obsidian-quick-sticky",
+    "https://github.com/18163623522/obsidian-canvas-plus",
+    "https://github.com/18163623522/obsidian-mindo-canvas",
 ];
 
 const LOCAL_SOURCES: &[&str] = &[
@@ -28,6 +30,8 @@ const LOCAL_SOURCES: &[&str] = &[
     r"D:\001_Archive\AI\NodeFitComments",
     r"D:\001_Archive\AI\AssetLinkInspector",
     r"D:\001_Archive\AI\UEPlugin-ShortcutAsset-426",
+    r"D:\001_Archive\AI\obsidian-math-canvas",
+    r"D:\001_Archive\AI\obsidian-rebirth-board",
 ];
 
 #[test]

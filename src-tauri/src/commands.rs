@@ -40,10 +40,107 @@ pub struct EnginesDto {
 
 #[tauri::command]
 pub fn detect_engines() -> EnginesDto {
+    let roots = crate::settings::load(&data_dir()).extra_ue_roots;
     EnginesDto {
-        ue: detect_ue_engines(&[]),
+        ue: detect_ue_engines(&roots),
         houdini: detect_houdini(),
         obsidian: crate::detect::obsidian::detect_obsidian(),
+    }
+}
+
+// ————————————————— 设置与缓存（M6）—————————————————
+
+#[tauri::command]
+pub fn get_settings() -> crate::settings::Settings {
+    crate::settings::load(&data_dir())
+}
+
+#[tauri::command]
+pub fn save_settings(roots: Vec<String>) -> Result<(), String> {
+    let mut s = crate::settings::load(&data_dir());
+    s.extra_ue_roots = roots.into_iter().map(PathBuf::from).collect();
+    crate::settings::save(&data_dir(), &s).map_err(|e| e.to_string())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CacheStats {
+    pub repos: u64,
+    pub releases: u64,
+    pub build: u64,
+}
+
+fn dir_size_bytes(dir: &std::path::Path) -> u64 {
+    let mut total = 0u64;
+    if let Ok(it) = std::fs::read_dir(dir) {
+        for e in it.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                total += dir_size_bytes(&p);
+            } else if let Ok(m) = e.metadata() {
+                total += m.len();
+            }
+        }
+    }
+    total
+}
+
+#[tauri::command]
+pub fn cache_stats() -> CacheStats {
+    let cache = data_dir().join("cache");
+    CacheStats {
+        repos: dir_size_bytes(&cache.join("repos")),
+        releases: dir_size_bytes(&cache.join("releases")),
+        build: dir_size_bytes(&cache.join("build")),
+    }
+}
+
+/// 清理缓存子目录（repos/releases/build 任选）。本地源目录不受影响（不在 cache 下）。
+#[tauri::command]
+pub fn clear_cache(repos: bool, releases: bool, build: bool) -> Result<u64, String> {
+    let cache = data_dir().join("cache");
+    let mut freed = 0u64;
+    for (name, do_clear) in [("repos", repos), ("releases", releases), ("build", build)] {
+        if do_clear {
+            let dir = cache.join(name);
+            freed += dir_size_bytes(&dir);
+            if dir.exists() {
+                std::fs::remove_dir_all(&dir).map_err(|e| format!("删除 {} 失败：{e}", dir.display()))?;
+            }
+        }
+    }
+    Ok(freed)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EnvStatus {
+    pub gh: bool,
+    pub curl: bool,
+    pub pnpm: bool,
+}
+
+#[tauri::command]
+pub fn env_status() -> EnvStatus {
+    use std::process::Command;
+    let curl_ok = || {
+        crate::preflight::no_window(Command::new("curl"))
+            .args(["--version"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    };
+    let pnpm_ok = || {
+        crate::preflight::no_window(Command::new("pnpm"))
+            .args(["--version"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    };
+    EnvStatus {
+        gh: crate::sources::git::gh_available(),
+        curl: curl_ok(),
+        pnpm: pnpm_ok(),
     }
 }
 

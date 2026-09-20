@@ -114,10 +114,28 @@ export interface EnginePreflight {
   items: PreflightItem[];
 }
 
+/** 设置与缓存（M6） */
+export interface Settings {
+  extraUeRoots: string[];
+}
+
+export interface CacheStats {
+  repos: number;
+  releases: number;
+  build: number;
+}
+
+export interface EnvStatus {
+  gh: boolean;
+  curl: boolean;
+  pnpm: boolean;
+}
+
 export interface FilterState {
   host: "all" | "UE" | "Houdini" | "Obsidian";
   status: "all" | "installed" | "updatable" | "idle" | "error";
   source: "all" | "github" | "local";
+  engine: string;
   search: string;
 }
 
@@ -125,5 +143,6 @@ export const DEFAULT_FILTER: FilterState = {
   host: "all",
   status: "all",
   source: "all",
+  engine: "all",
   search: "",
 };

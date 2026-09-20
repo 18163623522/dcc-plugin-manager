@@ -1,16 +1,17 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import type { FilterState } from "../types";
 
-const props = defineProps<{ modelValue: FilterState }>();
+const props = defineProps<{ modelValue: FilterState; engines?: string[] }>();
 const emit = defineEmits<{ "update:modelValue": [patch: Partial<FilterState>]; add: [] }>();
 
 interface ChipGroup {
-  key: "host" | "status" | "source";
+  key: "host" | "status" | "source" | "engine";
   label: string;
   options: { value: string; label: string }[];
 }
 
-const groups: ChipGroup[] = [
+const baseGroups: ChipGroup[] = [
   {
     key: "host",
     label: "宿主",
@@ -43,9 +44,21 @@ const groups: ChipGroup[] = [
   },
 ];
 
+// 引擎维度按检测到的目标动态生成（§4.1）
+const engineGroup = (labels: string[]): ChipGroup => ({
+  key: "engine",
+  label: "引擎",
+  options: [{ value: "all", label: "全部" }, ...labels.map((l) => ({ value: l, label: l }))],
+});
+
 function pick(group: ChipGroup, value: string) {
   emit("update:modelValue", { [group.key]: value } as Partial<FilterState>);
 }
+
+const groups = computed<ChipGroup[]>(() => {
+  const labels = (props.engines ?? []).filter(Boolean);
+  return labels.length > 0 ? [...baseGroups, engineGroup(labels)] : baseGroups;
+});
 
 function onSearch(e: Event) {
   emit("update:modelValue", { search: (e.target as HTMLInputElement).value });

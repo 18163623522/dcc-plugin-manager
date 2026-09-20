@@ -84,6 +84,13 @@ const allEngines = ref<{ UE: EngineRow[]; Houdini: EngineRow[]; Obsidian: Engine
   Obsidian: [],
 });
 
+/** 引擎筛选 chip 的标签全集（检测到的 UE 版本 + Houdini 版本 + vault 名） */
+const engineLabels = computed(() => [
+  ...allEngines.value.UE.map((e) => e.version),
+  ...allEngines.value.Houdini.map((h) => h.version),
+  ...allEngines.value.Obsidian.map((v) => v.version),
+]);
+
 /** 更新检查：远端新版本 → 黄点 + latest 字段 */
 async function checkUpdates() {
   if (!inTauri) return;
@@ -122,6 +129,7 @@ const filtered = computed(() => {
     if (filter.host !== "all" && p.host !== filter.host) return false;
     if (filter.status !== "all" && p.status !== filter.status) return false;
     if (filter.source !== "all" && p.source !== filter.source) return false;
+    if (filter.engine !== "all" && !p.engines.includes(filter.engine)) return false;
     if (q) {
       const hay = `${p.name}\n${p.origin}\n${p.desc}`.toLowerCase();
       if (!hay.includes(q)) return false;
@@ -327,7 +335,7 @@ async function openDir(id: string) {
 
 <template>
   <div class="page">
-    <FilterBar :model-value="filter" @update:model-value="applyFilter" @add="openAdd" />
+    <FilterBar :model-value="filter" :engines="engineLabels" @update:model-value="applyFilter" @add="openAdd" />
     <PluginList
       :plugins="filtered"
       @primary="askInstall"

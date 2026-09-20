@@ -4,6 +4,7 @@ pub mod detect;
 pub mod install;
 pub mod preflight;
 pub mod registry;
+pub mod settings;
 pub mod sources;
 pub mod uninstall;
 pub mod update;
@@ -24,6 +25,11 @@ pub fn run() {
             commands::preflight_for,
             commands::install_local,
             commands::cancel_build,
+            commands::get_settings,
+            commands::save_settings,
+            commands::cache_stats,
+            commands::clear_cache,
+            commands::env_status,
             commands::plan_uninstall,
             commands::do_uninstall,
         ])
