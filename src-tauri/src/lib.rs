@@ -1,5 +1,6 @@
 pub mod detect;
 pub mod registry;
+pub mod sources;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
