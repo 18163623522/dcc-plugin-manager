@@ -57,6 +57,8 @@ export interface PluginRow {
   origin: string;
   source: "github" | "local";
   desc: string;
+  /** 引擎 → 兼容状态（git 源 UE 插件；compat_all 后台填充） */
+  compat?: Record<string, CompatStatusDto>;
 }
 
 export interface InstallResult {

@@ -237,7 +237,7 @@ pub fn add_local_source(path: String) -> Result<PluginDto, String> {
 
 /// clone/pull 缓存仓库 → 识别 → 登记。过程日志经 `install-log` 事件流式到 UI。
 #[tauri::command]
-pub fn add_git_source(app: AppHandle, url: String) -> Result<PluginDto, String> {
+pub async fn add_git_source(app: AppHandle, url: String) -> Result<PluginDto, String> {
     let url = url.trim().to_string();
     let dir = data_dir();
 
@@ -284,7 +284,7 @@ pub struct UpdateDto {
 
 /// 全量检查更新（git 源联网、本地源读盘）。前端列表出黄点用。
 #[tauri::command]
-pub fn check_updates() -> Vec<UpdateDto> {
+pub async fn check_updates() -> Vec<UpdateDto> {
     let reg = load_registry();
     let dir = data_dir();
     reg.plugins
@@ -298,9 +298,9 @@ pub fn check_updates() -> Vec<UpdateDto> {
 
 // ————————————————— 兼容矩阵 + 预检（M2/M3）—————————————————
 
-/// git 源 → engine → CompatStatus（compat_for 与 preflight_for 共用；本地源空表）。
+/// git 源 → engine → CompatStatus（compat_for / preflight_for / compat_all 共用；
+/// 本地源空表）。阻塞 IO（pull + ls-remote），异步命令里跑。
 fn compat_map(
-    app: &AppHandle,
     entry: &PluginEntry,
 ) -> Result<std::collections::HashMap<String, crate::compat::CompatStatus>, String> {
     let PluginSource::Git { url, .. } = &entry.source else {
@@ -308,10 +308,7 @@ fn compat_map(
     };
     let dir = data_dir();
     // 确保缓存仓库在（add 时已 clone；被清缓存也能自愈）
-    let state = git::ensure_repo(url, &dir, &mut |l| {
-        let _ = app.emit("install-log", l);
-    })
-    .map_err(|e| e.to_string())?;
+    let state = git::ensure_repo(url, &dir, &mut |_| {}).map_err(|e| e.to_string())?;
 
     let refs = git::list_refs(url).map_err(|e| e.to_string())?;
     let engines = crate::detect::ue::detect_ue_engines(&[]);
@@ -335,12 +332,12 @@ fn compat_map(
 }
 
 #[tauri::command]
-pub fn compat_for(app: AppHandle, id: String) -> Result<Vec<crate::compat::EngineCompat>, String> {
+pub async fn compat_for(id: String) -> Result<Vec<crate::compat::EngineCompat>, String> {
     let reg = load_registry();
     let Some(entry) = reg.plugins.iter().find(|p| p.id == id) else {
         return Err(format!("条目不存在：{id}"));
     };
-    let map = compat_map(&app, entry)?;
+    let map = compat_map(entry)?;
     Ok(map.into_iter().map(|(engine, status)| crate::compat::EngineCompat { engine, status }).collect())
 }
 
@@ -353,12 +350,12 @@ pub struct EnginePreflight {
 
 /// 每个引擎的五项预检（安装对话框徽标/tooltip 用）。
 #[tauri::command]
-pub fn preflight_for(app: AppHandle, id: String) -> Result<Vec<EnginePreflight>, String> {
+pub async fn preflight_for(id: String) -> Result<Vec<EnginePreflight>, String> {
     let reg = load_registry();
     let Some(entry) = reg.plugins.iter().find(|p| p.id == id) else {
         return Err(format!("条目不存在：{id}"));
     };
-    let compat = compat_map(&app, entry)?;
+    let compat = compat_map(entry)?;
     let engines = crate::detect::ue::detect_ue_engines(&[]);
     let data = data_dir();
     Ok(engines
@@ -368,6 +365,36 @@ pub fn preflight_for(app: AppHandle, id: String) -> Result<Vec<EnginePreflight>,
             items: crate::preflight::check_all(entry, e, compat.get(&e.version), &data),
         })
         .collect())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompatAllDto {
+    pub id: String,
+    pub compat: Vec<crate::compat::EngineCompat>,
+}
+
+/// 全量兼容矩阵（列表卡片徽标条用）：git 源 UE 插件逐个计算，
+/// spawn_blocking 后台线程跑——ls-remote × N 秒级耗时也不卡 UI。
+#[tauri::command]
+pub async fn compat_all() -> Vec<CompatAllDto> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let reg = load_registry();
+        reg.plugins
+            .iter()
+            .filter(|p| p.kind == PluginKind::Ue && matches!(p.source, PluginSource::Git { .. }))
+            .map(|entry| {
+                let compat = compat_map(entry)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|(engine, status)| crate::compat::EngineCompat { engine, status })
+                    .collect();
+                CompatAllDto { id: entry.id.clone(), compat }
+            })
+            .collect()
+    })
+    .await
+    .unwrap_or_default()
 }
 
 // ————————————————— 安装（本地拷贝 / git：Release 优先 → 源码构建兜底）—————————————————
@@ -382,7 +409,7 @@ pub struct InstallResultDto {
 
 /// 安装：`refs`/`compat` 来自前端 compat_for 的结果；`token` 用于取消构建。
 #[tauri::command]
-pub fn install_local(
+pub async fn install_local(
     app: AppHandle,
     id: String,
     engines: Vec<String>,

@@ -57,6 +57,27 @@ async function refresh() {
   } catch (e) {
     showToast(`读取插件列表失败：${e}`, "err");
   }
+  // 后台补全兼容矩阵（卡片徽标条）；不阻塞列表显示
+  loadCompat();
+}
+
+async function loadCompat() {
+  if (!inTauri) return;
+  try {
+    const all = await call<{ id: string; compat: { engine: string; status: CompatStatusDto }[] }[]>(
+      "compat_all",
+    );
+    const byId = new Map(all.map((a) => [a.id, a.compat]));
+    rows.value = rows.value.map((r) => {
+      const list = byId.get(r.id);
+      if (!list) return r;
+      const map: Record<string, CompatStatusDto> = {};
+      for (const c of list) map[c.engine] = c.status;
+      return { ...r, compat: map };
+    });
+  } catch {
+    /* 兼容矩阵失败不打扰列表 */
+  }
 }
 
 async function loadEngines() {

@@ -1,9 +1,14 @@
 <script setup lang="ts">
-defineProps<{ text: string; title?: string }>();
+defineProps<{
+  text: string;
+  title?: string;
+  /** 兼容徽标语义色（缺省中性） */
+  tone?: "ok" | "warn" | "bad";
+}>();
 </script>
 
 <template>
-  <span class="chip mono" :title="title ?? text">{{ text }}</span>
+  <span class="chip mono" :class="tone" :title="title ?? text">{{ text }}</span>
 </template>
 
 <style scoped>
@@ -19,5 +24,20 @@ defineProps<{ text: string; title?: string }>();
   font-size: 10.5px;
   font-weight: 500;
   white-space: nowrap;
+}
+.chip.ok {
+  background: rgba(48, 209, 88, 0.12);
+  border-color: rgba(48, 209, 88, 0.25);
+  color: var(--c-ok);
+}
+.chip.warn {
+  background: rgba(255, 214, 10, 0.1);
+  border-color: rgba(255, 214, 10, 0.22);
+  color: var(--c-warn);
+}
+.chip.bad {
+  background: rgba(255, 69, 58, 0.12);
+  border-color: rgba(255, 69, 58, 0.25);
+  color: var(--c-err);
 }
 </style>

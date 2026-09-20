@@ -26,6 +26,34 @@ const primaryLabel: Record<PluginRow["status"], string> = {
   error: "重试",
 };
 
+/** 卡片兼容徽标条：UE git 源每个引擎的四态 chip（§3.7 UI） */
+interface CompatChip {
+  engine: string;
+  text: string;
+  title: string;
+  tone?: "ok" | "warn" | "bad";
+}
+function compatChips(p: PluginRow): CompatChip[] {
+  if (p.host !== "UE" || !p.compat) return [];
+  return Object.entries(p.compat).map(([engine, s]) => {
+    switch (s.kind) {
+      case "installed":
+        return { engine, text: `${engine} ✓已装`, title: "已安装（已验证兼容）", tone: "ok" as const };
+      case "installable":
+        return {
+          engine,
+          text: s.confirmed ? `${engine} ✓${s.gitRef}` : `${engine} ${s.gitRef}`,
+          title: s.confirmed ? "分支 EngineVersion 已确认匹配" : "分支名匹配（EngineVersion 未声明）",
+          tone: s.confirmed ? ("ok" as const) : ("warn" as const),
+        };
+      case "unverified":
+        return { engine, text: `${engine} ?`, title: "无版本信号——安装即试编译，成败为最终裁决", tone: "warn" as const };
+      case "incompatible":
+        return { engine, text: `${engine} ✗`, title: s.reason, tone: "bad" as const };
+    }
+  });
+}
+
 /** GitHub 来源 → 仓库地址（线上说明入口）；本地来源无线上页 */
 function onlineUrl(p: PluginRow): string | null {
   if (p.source !== "github") return null;
@@ -67,6 +95,16 @@ function onlineUrl(p: PluginRow): string | null {
 
       <div v-if="p.engines.length" class="engines">
         <EngineChip v-for="e in p.engines" :key="e" :text="e" title="已安装引擎" />
+      </div>
+
+      <div v-if="compatChips(p).length" class="engines compat">
+        <EngineChip
+          v-for="c in compatChips(p)"
+          :key="c.engine"
+          :text="c.text"
+          :title="c.title"
+          :tone="c.tone"
+        />
       </div>
 
       <footer class="foot">
