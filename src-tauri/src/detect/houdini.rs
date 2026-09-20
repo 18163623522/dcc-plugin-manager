@@ -99,6 +99,7 @@ fn normalize_value_version(name: &str) -> Option<String> {
             let joined = format!("{a}.{b}.{d}");
             version_subkey(&joined).map(|_| joined)
         }
+        [_, _, _, _, ..] => None, // 其他四段及以上：不猜
         _ => version_subkey(name),
     }
 }
