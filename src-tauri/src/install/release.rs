@@ -194,6 +194,88 @@ pub fn extract_zip(zip: &Path, dest: &Path) -> Result<(), ReleaseError> {
     Ok(())
 }
 
+/// Obsidian 散件下载：latest Release 的 main.js / manifest.json（必需）
+/// + styles.css（可选）各自独立附件 → 下载到 `dest_dir`。
+/// 无散件但有 zip → 下载解压，从解压目录探测 manifest.json 所在层。
+/// 返回 (tag, 含三件套的目录)。
+pub fn install_release_files(
+    repo_full: &str,
+    dest_dir: &Path,
+    on_line: &mut dyn FnMut(&str),
+) -> Result<(String, PathBuf), ReleaseError> {
+    let rel = latest_release(repo_full)?;
+    let find_asset = |name: &str| {
+        rel.assets
+            .iter()
+            .find(|a| a.name.eq_ignore_ascii_case(name))
+    };
+
+    if find_asset("manifest.json").is_some() && find_asset("main.js").is_some() {
+        std::fs::create_dir_all(dest_dir).map_err(|e| ReleaseError::Extract { detail: e.to_string() })?;
+        for name in ["main.js", "manifest.json", "styles.css"] {
+            let Some(asset) = find_asset(name) else { continue };
+            on_line(&format!("下载散件 {}（{:.1} KB）", asset.name, asset.size as f64 / 1024.0));
+            let o = no_window(Command::new("curl"))
+                .args(["-sSL", "-o"])
+                .arg(dest_dir.join(&asset.name))
+                .arg(&asset.url)
+                .output()
+                .map_err(|_| ReleaseError::CurlMissing)?;
+            if !o.status.success() {
+                return Err(ReleaseError::Download {
+                    asset: asset.name.clone(),
+                    detail: String::from_utf8_lossy(&o.stderr).trim().to_string(),
+                });
+            }
+        }
+        return Ok((rel.tag, dest_dir.to_path_buf()));
+    }
+
+    // 散件缺失 → zip 附件兜底：解压后定位 manifest.json 所在层
+    if let Some(zip) = pick_zip_asset(&rel.assets) {
+        let extract_dir = dest_dir.join("extracted");
+        std::fs::create_dir_all(&extract_dir)
+            .map_err(|e| ReleaseError::Extract { detail: e.to_string() })?;
+        on_line(&format!("下载 {}（{:.1} MB）", zip.name, zip.size as f64 / 1048576.0));
+        let zip_path = dest_dir.join(&zip.name);
+        let o = no_window(Command::new("curl"))
+            .args(["-sSL", "-o"])
+            .arg(&zip_path)
+            .arg(&zip.url)
+            .output()
+            .map_err(|_| ReleaseError::CurlMissing)?;
+        if !o.status.success() {
+            return Err(ReleaseError::Download {
+                asset: zip.name.clone(),
+                detail: String::from_utf8_lossy(&o.stderr).trim().to_string(),
+            });
+        }
+        on_line(&format!("解压 {}", zip.name));
+        extract_zip(&zip_path, &extract_dir)?;
+        let files_dir = probe_manifest_dir(&extract_dir).ok_or_else(|| {
+            ReleaseError::NoUpluginInZip(extract_dir.clone())
+        })?;
+        return Ok((rel.tag, files_dir));
+    }
+
+    Err(ReleaseError::NoZipAsset {
+        tag: rel.tag.clone(),
+        assets: rel.assets.iter().map(|a| a.name.clone()).collect(),
+    })
+}
+
+/// 解压后探测含 manifest.json 的目录（根或一层嵌套）。
+pub fn probe_manifest_dir(dir: &Path) -> Option<PathBuf> {
+    let has_manifest = |d: &Path| d.join("manifest.json").is_file() && d.join("main.js").is_file();
+    if has_manifest(dir) {
+        return Some(dir.to_path_buf());
+    }
+    std::fs::read_dir(dir).ok()?.flatten().find_map(|e| {
+        let p = e.path();
+        (p.is_dir() && has_manifest(&p)).then_some(p)
+    })
+}
+
 /// Release 安装全流程。成功返回 (安装记录, Release tag)。
 pub fn install_release(
     repo_url: &str,

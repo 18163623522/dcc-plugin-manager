@@ -62,20 +62,27 @@ async function refresh() {
 async function loadEngines() {
   if (!inTauri) return;
   try {
-    const dto = await call<{ ue: UeEngine[]; houdini: { version: string; root: string }[] }>(
-      "detect_engines",
-    );
-    // UE / Houdini 统一成 EngineRow，安装对话框按插件宿主挑列表
+    const dto = await call<{
+      ue: UeEngine[];
+      houdini: { version: string; root: string }[];
+      obsidian: { vaults: { id: string; name: string; path: string }[] };
+    }>("detect_engines");
+    // UE / Houdini / Obsidian vault 统一成 EngineRow（vault 的安装标识 = id）
     allEngines.value = {
       UE: dto.ue.map((e) => ({ version: e.version, root: e.root })),
       Houdini: dto.houdini.map((h) => ({ version: h.version, root: h.root })),
+      Obsidian: dto.obsidian.vaults.map((v) => ({ id: v.id, version: v.name, root: v.path })),
     };
     engines.value = allEngines.value.UE;
   } catch (e) {
     showToast(`引擎检测失败：${e}`, "err");
   }
 }
-const allEngines = ref<{ UE: EngineRow[]; Houdini: EngineRow[] }>({ UE: [], Houdini: [] });
+const allEngines = ref<{ UE: EngineRow[]; Houdini: EngineRow[]; Obsidian: EngineRow[] }>({
+  UE: [],
+  Houdini: [],
+  Obsidian: [],
+});
 
 /** 更新检查：远端新版本 → 黄点 + latest 字段 */
 async function checkUpdates() {
@@ -185,10 +192,9 @@ async function askInstall(id: string) {
   installTarget.value = p;
   installCompat.value = {};
   installPreflight.value = {};
-  // 引擎列表按宿主切换（Houdini = 检测到的 Houdini 安装）
-  engines.value = p.host === "Houdini" ? allEngines.value.Houdini : allEngines.value.UE;
+  // 引擎列表按宿主切换（Houdini = 检测到的安装；Obsidian = 检测到的 vault）
   if (allEngines.value[p.host].length === 0) await loadEngines();
-  engines.value = p.host === "Houdini" ? allEngines.value.Houdini : allEngines.value.UE;
+  engines.value = allEngines.value[p.host];
 
   // git 源 UE 插件：拉兼容矩阵 + 五项预检（联网，可能几秒）
   if (inTauri && p.source === "github" && p.host === "UE") {

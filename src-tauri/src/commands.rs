@@ -35,6 +35,7 @@ fn save_registry(reg: &Registry) -> Result<(), String> {
 pub struct EnginesDto {
     pub ue: Vec<UeEngine>,
     pub houdini: Vec<HoudiniInstall>,
+    pub obsidian: crate::detect::obsidian::ObsidianInfo,
 }
 
 #[tauri::command]
@@ -42,6 +43,7 @@ pub fn detect_engines() -> EnginesDto {
     EnginesDto {
         ue: detect_ue_engines(&[]),
         houdini: detect_houdini(),
+        obsidian: crate::detect::obsidian::detect_obsidian(),
     }
 }
 
@@ -65,8 +67,24 @@ pub struct PluginDto {
 
 fn to_dto(e: &PluginEntry) -> PluginDto {
     let (host, source, origin) = match &e.source {
-        PluginSource::Git { url, .. } => ("UE", "github", url.clone()),
-        PluginSource::Local { path } => (match e.kind { PluginKind::Ue => "UE", PluginKind::Houdini => "Houdini" }, "local", path.to_string_lossy().into_owned()),
+        PluginSource::Git { url, .. } => (
+            match e.kind {
+                PluginKind::Ue => "UE",
+                PluginKind::Houdini => "Houdini",
+                PluginKind::Obsidian => "Obsidian",
+            },
+            "github",
+            url.clone(),
+        ),
+        PluginSource::Local { path } => (
+            match e.kind {
+                PluginKind::Ue => "UE",
+                PluginKind::Houdini => "Houdini",
+                PluginKind::Obsidian => "Obsidian",
+            },
+            "local",
+            path.to_string_lossy().into_owned(),
+        ),
     };
     // M1 无更新检查器：latest = version；状态= 已装/未装（可更新/失败 M2+）
     let installed = !e.installed.is_empty();
@@ -79,7 +97,15 @@ fn to_dto(e: &PluginEntry) -> PluginDto {
         engines: e
             .installed
             .iter()
-            .map(|t| t.engine.split_once('-').map(|(_, v)| v.to_string()).unwrap_or_else(|| t.engine.clone()))
+            .map(|t| {
+                t.engine
+                    .strip_prefix("Obsidian@")
+                    .map(str::to_string)
+                    .or_else(|| {
+                        t.engine.split_once('-').map(|(_, v)| v.to_string())
+                    })
+                    .unwrap_or_else(|| t.engine.clone())
+            })
             .collect(),
         status: if installed { "installed" } else { "idle" }.into(),
         origin,
@@ -293,23 +319,29 @@ pub fn install_local(
 
     let ue_list = crate::detect::ue::detect_ue_engines(&[]);
     let hou_list = crate::detect::houdini::detect_houdini();
+    let obs_info = crate::detect::obsidian::detect_obsidian();
     let data = data_dir();
     let mut results = Vec::new();
 
     for label in &engines {
-        // 按插件类型解析目标（UE 引擎或 Houdini 安装）
-        let pick = if entry.kind == PluginKind::Houdini {
-            hou_list
+        // 按插件类型解析目标（UE 引擎 / Houdini 安装 / Obsidian vault，label=vault id）
+        let pick = match entry.kind {
+            PluginKind::Houdini => hou_list
                 .iter()
                 .find(|h| &h.version == label)
                 .map(EnginePick::Hou)
-                .ok_or_else(|| format!("未检测到 Houdini {label}"))
-        } else {
-            ue_list
+                .ok_or_else(|| format!("未检测到 Houdini {label}")),
+            PluginKind::Obsidian => obs_info
+                .vaults
+                .iter()
+                .find(|v| &v.id == label)
+                .map(EnginePick::Obs)
+                .ok_or_else(|| format!("未检测到 vault {label}")),
+            PluginKind::Ue => ue_list
                 .iter()
                 .find(|e| &e.version == label)
                 .map(EnginePick::Ue)
-                .ok_or_else(|| format!("未检测到 UE {label}"))
+                .ok_or_else(|| format!("未检测到 UE {label}")),
         };
         let pick = match pick {
             Ok(v) => v,
@@ -350,10 +382,11 @@ pub fn install_local(
     results
 }
 
-/// 安装目标：UE 引擎或 Houdini 安装。
+/// 安装目标：UE 引擎 / Houdini 安装 / Obsidian vault。
 enum EnginePick<'a> {
     Ue(&'a UeEngine),
     Hou(&'a crate::detect::houdini::HoudiniInstall),
+    Obs(&'a crate::detect::obsidian::ObsidianVault),
 }
 
 /// 单目标安装：Houdini → packages 落位；UE：Local → 拷贝，Git → Release 优先、构建兜底。
@@ -390,8 +423,79 @@ fn install_one(
             .map_err(|e| e.to_string());
     }
 
+    // Obsidian：Release 散件 → 源码 pnpm build → 本地已构建，产物三件套落位 vault
+    if let EnginePick::Obs(vault) = pick {
+        use crate::install::obsidian;
+        let (files_dir, method, tag) = match &entry.source {
+            PluginSource::Local { path } => {
+                let mut dir = path.clone();
+                let mut m = InstallMethod::BinaryCopy;
+                if !obsidian::has_built_files(&dir) {
+                    emit("本地目录无产物，尝试 pnpm 构建");
+                    obsidian::build_obsidian(&dir, &mut |l| emit(l))?;
+                    m = InstallMethod::Build;
+                }
+                if !obsidian::has_built_files(&dir) {
+                    // 构建产物不在根（自定义输出目录）→ 探测一层子目录
+                    if let Some(sub) = std::fs::read_dir(&dir)
+                        .ok()
+                        .and_then(|it| {
+                            it.flatten().find(|e| obsidian::has_built_files(&e.path()))
+                        })
+                    {
+                        dir = sub.path();
+                    }
+                }
+                (dir, m, None)
+            }
+            PluginSource::Git { url, .. } => {
+                let state =
+                    git::ensure_repo(url, data_dir, &mut |l| emit(l)).map_err(|e| e.to_string())?;
+                let repo_name = git::repo_name(url).unwrap_or_else(|| "repo".into());
+                let cache = data_dir.join("cache").join("releases").join(repo_name);
+                // 1. Release 散件（Obsidian 惯例）
+                match crate::install::release::install_release_files(
+                    &git::repo_full_name(url).unwrap_or_default(),
+                    &cache,
+                    &mut |l| emit(l),
+                ) {
+                    Ok((tag, dir)) => (dir, InstallMethod::Release, Some(tag)),
+                    Err(e) => {
+                        let fallback = matches!(
+                            e,
+                            crate::install::release::ReleaseError::NoRelease(_)
+                                | crate::install::release::ReleaseError::NoZipAsset { .. }
+                        );
+                        if !fallback {
+                            return Err(e.to_string());
+                        }
+                        // 2. 源码 pnpm 构建
+                        emit("无 Release 散件 → pnpm 源码构建");
+                        obsidian::build_obsidian(&state.path, &mut |l| emit(l))?;
+                        (state.path.clone(), InstallMethod::Build, None)
+                    }
+                }
+            }
+        };
+
+        // minAppVersion 兼容提示（不阻塞）
+        if let Some(min) = obsidian::min_app_version(&files_dir) {
+            if let Some(app) = crate::detect::obsidian::app_version() {
+                if !obsidian::version_lte(&min, &app) {
+                    emit(&format!(
+                        "⚠ manifest 要求 Obsidian ≥ {min}，本机为 {app}——装完可能无法启用"
+                    ));
+                }
+            }
+        }
+
+        let t = obsidian::install_obsidian(&files_dir, vault, method, &mut |l| emit(l))
+            .map_err(|e| e.to_string())?;
+        return Ok((t, tag, method));
+    }
+
     let EnginePick::Ue(engine) = pick else {
-        unreachable!("Houdini 分支已提前返回");
+        unreachable!("Houdini/Obsidian 分支已提前返回");
     };
 
     match &entry.source {

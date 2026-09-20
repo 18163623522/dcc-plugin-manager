@@ -23,18 +23,33 @@ export interface HoudiniInstall {
 export interface EnginesDto {
   ue: UeEngine[];
   houdini: HoudiniInstall[];
+  obsidian: ObsidianInfo;
 }
 
-/** 安装对话框通用引擎行（UE 引擎 / Houdini 安装统一形状） */
+export interface ObsidianVault {
+  id: string;
+  name: string;
+  path: string;
+  open: boolean;
+}
+
+export interface ObsidianInfo {
+  vaults: ObsidianVault[];
+  appVersion: string | null;
+}
+
+/** 安装对话框通用引擎行（UE 引擎 / Houdini 安装 / Obsidian vault 统一形状；
+ *  id 存在时（vault）以 id 作为安装目标标识，否则用 version */
 export interface EngineRow {
   version: string;
   root: string;
+  id?: string;
 }
 
 export interface PluginRow {
   id: string;
   name: string;
-  host: "UE" | "Houdini";
+  host: "UE" | "Houdini" | "Obsidian";
   version: string;
   latest: string;
   engines: string[];
@@ -100,7 +115,7 @@ export interface EnginePreflight {
 }
 
 export interface FilterState {
-  host: "all" | "UE" | "Houdini";
+  host: "all" | "UE" | "Houdini" | "Obsidian";
   status: "all" | "installed" | "updatable" | "idle" | "error";
   source: "all" | "github" | "local";
   search: string;

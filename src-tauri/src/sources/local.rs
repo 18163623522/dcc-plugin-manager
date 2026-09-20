@@ -75,6 +75,13 @@ pub fn inspect_local(path: &Path) -> Result<LocalPlugin, LocalInspectError> {
         });
     }
 
+    // Obsidian：根目录 manifest.json（要求 id + Obsidian 特征字段，防误判普通 web manifest）
+    if path.join("manifest.json").is_file() {
+        if let Some(p) = inspect_obsidian_manifest(path) {
+            return Ok(p);
+        }
+    }
+
     // Houdini：约定文件存在性
     if has_houdini_markers(path) {
         let id = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
@@ -144,6 +151,31 @@ fn parse_uplugin(
         get("EngineVersion"),
         get("Description"),
     ))
+}
+
+/// Obsidian manifest.json 识别：须有 id 且带 Obsidian 特征字段
+/// （minAppVersion / isDesktopOnly 任一），否则视为普通 web manifest 不识别。
+fn inspect_obsidian_manifest(path: &Path) -> Option<LocalPlugin> {
+    let text = fs::read_to_string(path.join("manifest.json")).ok()?;
+    let text = text.trim_start_matches('\u{feff}');
+    let v: serde_json::Value = serde_json::from_str(text).ok()?;
+    let get = |k: &str| v.get(k).and_then(|x| x.as_str()).map(str::to_string);
+    let id = get("id")?;
+    let obsidian_signature =
+        v.get("minAppVersion").is_some() || v.get("isDesktopOnly").is_some();
+    if !obsidian_signature {
+        return None;
+    }
+    Some(LocalPlugin {
+        kind: PluginKind::Obsidian,
+        friendly_name: get("name").unwrap_or_else(|| id.clone()),
+        id,
+        version: get("version").unwrap_or_default(),
+        // engine_version 复用为 minAppVersion（兼容提示用）
+        engine_version: get("minAppVersion"),
+        desc: get("description"),
+        plugin_root: path.to_path_buf(),
+    })
 }
 
 /// Houdini 标记：深度 ≤2 内有约定扩展名文件，或 hda/ 子目录含 dll。
@@ -244,6 +276,33 @@ mod tests {
         assert_eq!(p.friendly_name, "Solo"); // 回退 id
         assert_eq!(p.version, "1.0");
         assert_eq!(p.engine_version, None);
+    }
+
+    #[test]
+    fn recognizes_obsidian_manifest() {
+        let dir = temp_tree(
+            "obs",
+            &[
+                ("manifest.json", r#"{"id":"quick-sticky","name":"Quick Sticky","version":"1.2.0","minAppVersion":"1.4.0","isDesktopOnly":true}"#),
+                ("main.js", "x"),
+            ],
+        );
+        let p = inspect_local(&dir).unwrap();
+        assert_eq!(p.kind, PluginKind::Obsidian);
+        assert_eq!(p.id, "quick-sticky");
+        assert_eq!(p.friendly_name, "Quick Sticky");
+        assert_eq!(p.version, "1.2.0");
+        assert_eq!(p.engine_version.as_deref(), Some("1.4.0"));
+    }
+
+    #[test]
+    fn plain_web_manifest_not_recognized() {
+        // 无 minAppVersion/isDesktopOnly 特征 → 不算 Obsidian 插件 → 未识别
+        let dir = temp_tree("web", &[("manifest.json", r#"{"id":"web","name":"Web App"}"#)]);
+        assert!(matches!(
+            inspect_local(&dir).unwrap_err(),
+            LocalInspectError::Unrecognized(_)
+        ));
     }
 
     #[test]

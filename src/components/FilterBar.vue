@@ -18,6 +18,7 @@ const groups: ChipGroup[] = [
       { value: "all", label: "全部" },
       { value: "UE", label: "UE" },
       { value: "Houdini", label: "Houdini" },
+      { value: "Obsidian", label: "Obsidian" },
     ],
   },
   {

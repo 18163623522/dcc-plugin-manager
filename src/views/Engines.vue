@@ -29,6 +29,9 @@ onMounted(refresh);
           <span class="num">{{ data.ue.length }}</span> 个 Unreal Engine
           <span class="sep">·</span>
           <span class="num">{{ data.houdini.length }}</span> 个 Houdini
+          <span class="sep">·</span>
+          <span class="num">{{ data.obsidian.vaults.length }}</span> 个 Obsidian vault
+          <template v-if="data.obsidian.appVersion">（应用 {{ data.obsidian.appVersion }}）</template>
         </template>
         <template v-else-if="!inTauri">浏览器预览模式：引擎检测需在应用内运行</template>
       </div>
@@ -62,6 +65,19 @@ onMounted(refresh);
             </div>
             <div class="path" :title="h.root">{{ h.root }}</div>
             <div class="path sub" :title="h.packagesDir">packages: {{ h.packagesDir }}</div>
+          </div>
+        </div>
+      </section>
+
+      <section v-if="data && data.obsidian.vaults.length">
+        <h3>Obsidian<span class="tag">obsidian.json vault 枚举</span></h3>
+        <div class="grid">
+          <div v-for="v in data.obsidian.vaults" :key="v.id" class="engine-card">
+            <div class="row1">
+              <span class="ver">{{ v.name }}</span>
+              <span v-if="v.open" class="ok-badge">当前打开</span>
+            </div>
+            <div class="path" :title="v.path">{{ v.path }}</div>
           </div>
         </div>
       </section>

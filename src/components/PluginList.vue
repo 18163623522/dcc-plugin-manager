@@ -50,7 +50,7 @@ function onlineUrl(p: PluginRow): string | null {
       <header class="head">
         <StatusDot :status="statusToDot[p.status]" />
         <span class="name">{{ p.name }}</span>
-        <span class="host-badge" :class="p.host === 'UE' ? 'ue' : 'hou'">{{ p.host }}</span>
+          <span class="host-badge" :class="p.host === 'UE' ? 'ue' : p.host === 'Houdini' ? 'hou' : 'obs'">{{ p.host }}</span>
       </header>
 
       <div v-if="p.version" class="ver mono">
@@ -185,6 +185,10 @@ function onlineUrl(p: PluginRow): string | null {
 .host-badge.hou {
   background: rgba(255, 159, 10, 0.16);
   color: #ffb84d;
+}
+.host-badge.obs {
+  background: rgba(167, 139, 250, 0.16);
+  color: #c4b5fd;
 }
 
 .ver {

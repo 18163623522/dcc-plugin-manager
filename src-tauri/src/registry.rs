@@ -45,6 +45,8 @@ pub enum PluginKind {
     Ue,
     /// 变体名即 "Houdini"
     Houdini,
+    /// Obsidian 插件（M5）
+    Obsidian,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -163,6 +165,11 @@ pub fn ue_engine_label(version: &str) -> String {
 
 pub fn houdini_engine_label(version: &str) -> String {
     format!("Houdini-{version}")
+}
+
+/// vault 安装标签："Obsidian@<vault 名>"。
+pub fn obsidian_engine_label(vault_name: &str) -> String {
+    format!("Obsidian@{vault_name}")
 }
 
 #[cfg(test)]

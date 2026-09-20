@@ -38,10 +38,13 @@ function blockedReason(engine: string): string | null {
 
 function isBlocked(engine: string): boolean {
   return statusOf(engine)?.kind === "incompatible" || blockedReason(engine) !== null;
+}function rowValue(e: { id?: string; version: string }): string {
+  return e.id ?? e.version;
 }
 
-function toggle(v: string, disabled: boolean) {
+function toggle(row: { id?: string; version: string }, disabled: boolean) {
   if (disabled) return;
+  const v = rowValue(row);
   const next = new Set(checked.value);
   if (next.has(v)) next.delete(v);
   else next.add(v);
@@ -85,34 +88,36 @@ function confirm() {
         <div class="title">安装 {{ plugin.name }}</div>
         <div class="sub">
           {{
-            plugin.host === "Houdini"
-              ? "拷贝到偏好目录 plugins\\ + 生成 packages json（Houdini 重启后生效）"
-              : plugin.source === "github"
-                ? "GitHub 源：Release 附件优先，无附件走 RunUAT 源码构建"
-                : "本地目录拷贝到 Engine\\Plugins\\Marketplace"
+            plugin.host === "Obsidian"
+              ? "安装到 vault 的 .obsidian\\plugins\\（完成后在 Obsidian 设置中启用）"
+              : plugin.host === "Houdini"
+                ? "拷贝到偏好目录 plugins\\ + 生成 packages json（Houdini 重启后生效）"
+                : plugin.source === "github"
+                  ? "GitHub 源：Release 附件优先，无附件走 RunUAT 源码构建"
+                  : "本地目录拷贝到 Engine\\Plugins\\Marketplace"
           }}
         </div>
 
         <div class="engine-list">
           <label
             v-for="e in engines"
-            :key="e.version"
+            :key="rowValue(e)"
             class="engine-item"
             :class="{
-              checked: checked.has(e.version),
-              banned: isBlocked(e.version),
+              checked: checked.has(rowValue(e)),
+              banned: isBlocked(rowValue(e)),
             }"
-            :title="blockedReason(e.version) ?? badgeOf(statusOf(e.version))?.title ?? ''"
+            :title="blockedReason(rowValue(e)) ?? badgeOf(statusOf(rowValue(e)))?.title ?? ''"
           >
             <input
               type="checkbox"
-              :checked="checked.has(e.version)"
-              :disabled="isBlocked(e.version)"
-              @change="toggle(e.version, isBlocked(e.version))"
+              :checked="checked.has(rowValue(e))"
+              :disabled="isBlocked(rowValue(e))"
+              @change="toggle(e, isBlocked(rowValue(e)))"
             />
             <span class="ver mono">{{ e.version }}</span>
-            <span v-if="badgeOf(statusOf(e.version))" class="badge" :class="badgeOf(statusOf(e.version))!.cls">
-              {{ badgeOf(statusOf(e.version))!.text }}
+            <span v-if="badgeOf(statusOf(rowValue(e)))" class="badge" :class="badgeOf(statusOf(rowValue(e)))!.cls">
+              {{ badgeOf(statusOf(rowValue(e)))!.text }}
             </span>
             <span class="path">{{ e.root }}</span>
           </label>

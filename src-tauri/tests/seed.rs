@@ -20,6 +20,7 @@ const GIT_SOURCES: &[&str] = &[
     "https://github.com/18163623522/BetterHLSL",
     "https://github.com/18163623522/BetterMaterialWires",
     "https://github.com/18163623522/ue426-advanced-comments",
+    "https://github.com/18163623522/obsidian-quick-sticky",
 ];
 
 const LOCAL_SOURCES: &[&str] = &[
