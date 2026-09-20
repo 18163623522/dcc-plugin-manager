@@ -78,7 +78,7 @@ pub fn uplugin_engine_version(text: &str) -> Option<String> {
     v.get("EngineVersion")?.as_str().map(str::to_string)
 }
 
-fn ev_major_minor(ev: &str) -> Option<(u32, u32)> {
+pub(crate) fn ev_major_minor(ev: &str) -> Option<(u32, u32)> {
     let mut it = ev.split('.');
     let major = it.next()?.trim().parse().ok()?;
     let minor = it.next().unwrap_or("0").trim().parse().unwrap_or(0);

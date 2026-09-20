@@ -130,13 +130,16 @@ fn ok_or(o: Output, what: &'static str) -> Result<String, GitError> {
     }
 }
 
-/// 确保缓存仓库最新：已存在 → `pull --ff-only`；否则 clone。
-/// `on_line` 收到命令输出行（前端事件流）。
+/// 确保缓存仓库最新：已存在 → 先强力重置（UAT 构建会在工作区留未跟踪产物，
+/// 如 FilterPlugin.ini，不清理会挡住 pull/分支切换）→ `pull --ff-only`；否则 clone。
+/// 缓存仓库设计上可随时重置/重 clone，不含用户数据。
 pub fn ensure_repo(url: &str, cache_dir: &Path, on_line: &mut dyn FnMut(&str)) -> Result<RepoState, GitError> {
     let path = repo_cache_path(cache_dir, url)?;
     let exists = path.join(".git").is_dir();
     if exists {
         on_line(&format!("git pull --ff-only（{}）", path.display()));
+        let _ = git(&["reset", "-q", "--hard"], Some(&path));
+        let _ = git(&["clean", "-q", "-fd"], Some(&path));
         ok_or(git(&["pull", "--ff-only"], Some(&path))?, "pull")?;
     } else {
         std::fs::create_dir_all(path.parent().expect("cache/repos 一定有父目录")).ok();
@@ -146,9 +149,29 @@ pub fn ensure_repo(url: &str, cache_dir: &Path, on_line: &mut dyn FnMut(&str)) -
     repo_state(&path)
 }
 
+/// 本地缓存仓库的远端分支名列表（refs/remotes/origin/*，剥前缀，去 HEAD）。
+pub fn remote_branch_names(path: &Path) -> Vec<String> {
+    let out = match git(
+        &["for-each-ref", "--format=%(refname:short)", "refs/remotes/origin"],
+        Some(path),
+    ) {
+        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).into_owned(),
+        _ => return Vec::new(),
+    };
+    out.lines()
+        .filter_map(|l| {
+            let n = l.trim().strip_prefix("origin/")?;
+            (!n.is_empty() && !n.eq_ignore_ascii_case("head")).then(|| n.to_string())
+        })
+        .collect()
+}
+
 /// 切换工作区到指定分支/标签（构建前选 ref 用）。
+/// 强力重置：清掉 UAT 构建残留的未跟踪/已修改文件，否则切换会被拒。
 pub fn checkout(path: &Path, git_ref: &str) -> Result<(), GitError> {
-    ok_or(git(&["checkout", "-q", git_ref], Some(path))?, "checkout")?;
+    let _ = git(&["reset", "-q", "--hard"], Some(path));
+    let _ = git(&["clean", "-q", "-fd"], Some(path));
+    ok_or(git(&["checkout", "-q", "-f", git_ref], Some(path))?, "checkout")?;
     Ok(())
 }
 

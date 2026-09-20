@@ -211,9 +211,36 @@ fn betterhlsl_type_noise_branches_unverified() {
     assert_eq!(status_of(&out, "5.7.4"), CompatStatus::Unverified);
 }
 
+/// 兜底选分支：BetterHLSL 型仓库（main 无声明 + ue4.26 版本分支）→ 4.26 安装应自动选 ue4.26。
 #[test]
-fn installed_record_wins_over_all_signals() {
-    let root = temp_root("inst");
+fn pick_ref_falls_back_to_versioned_branch() {
+    let root = temp_root("pick");
+    let dir = make_repo(
+        &root,
+        "BetterHLSL",
+        None,
+        &[("ue4.26", Some("4.26")), ("ue5.7", Some("5.7")), ("noise", None)],
+    );
+    // 本地仓库伪造 remote 跟踪引用（remote_branch_names 读 refs/remotes/origin）
+    for br in ["main", "ue4.26", "ue5.7", "noise"] {
+        sh(
+            Some(&dir),
+            &[
+                "update-ref",
+                &format!("refs/remotes/origin/{br}"),
+                &format!("refs/heads/{br}"),
+            ],
+        );
+    }
+
+    use dcc_plugin_manager_lib::commands::pick_ref_for_engine;
+    assert_eq!(pick_ref_for_engine(&dir, "4.26.2").as_deref(), Some("ue4.26"));
+    assert_eq!(pick_ref_for_engine(&dir, "5.7.4").as_deref(), Some("ue5.7"));
+    assert_eq!(pick_ref_for_engine(&dir, "5.8.1"), None, "无匹配分支应返回 None（走默认分支）");
+}
+
+#[test]
+fn installed_record_wins_over_all_signals() {    let root = temp_root("inst");
     let dir = make_repo(&root, "TrueGlow", Some("4.26"), &[("ue5.7", Some("5.7"))]);
     let refs = local_branch_refs(&dir);
     let engines = [engine("5.7.4")];

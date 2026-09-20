@@ -587,14 +587,23 @@ fn install_one(
                 .map_err(|e| e.to_string())
         }
         PluginSource::Git { url, default_ref } => {
-            // 1. 确保缓存并 checkout 兼容分支（compat 给的 ref，缺省默认分支）
+            // 1. 确保缓存并选定分支：compat 给的 ref → 后端自动挑版本分支 → 默认分支
             let state =
                 git::ensure_repo(url, data_dir, &mut |l| emit(l)).map_err(|e| e.to_string())?;
-            let git_ref = refs
-                .and_then(|m| m.get(&engine.version))
-                .cloned()
+            let mut picked = refs.and_then(|m| m.get(&engine.version)).cloned();
+            let mut auto = false;
+            if picked.is_none() {
+                if let Some(pick) = pick_ref_for_engine(&state.path, &engine.version) {
+                    auto = true;
+                    picked = Some(pick);
+                }
+            }
+            let git_ref = picked
                 .or_else(|| default_ref.clone())
                 .unwrap_or_else(|| state.default_ref.clone());
+            if auto {
+                emit(&format!("自动选择版本分支：{git_ref}（兼容矩阵未提供，按分支名匹配）"));
+            }
             git::checkout(&state.path, &git_ref)
                 .map_err(|e| format!("checkout {git_ref} 失败：{e}"))?;
 
@@ -638,6 +647,37 @@ fn install_one(
 #[tauri::command]
 pub fn cancel_build(token: String) -> bool {
     crate::install::build::cancel_build(&token)
+}
+
+/// 兜底选分支：refs 没给该引擎时，扫本地缓存仓库的远端分支名，
+/// 精确匹配引擎 major.minor（ue5.7 / ue4.26），分支 uplugin 的 EngineVersion
+/// 一致者优先。避免盲编默认分支（BetterHLSL main 是 UE5 代码的实测教训）。
+pub fn pick_ref_for_engine(repo: &std::path::Path, engine_version: &str) -> Option<String> {
+    use crate::compat::{ev_major_minor, parse_ref_ue_version, uplugin_engine_version, RefVersion};
+
+    let target = ev_major_minor(engine_version)?;
+    let mut best: Option<(bool, String)> = None; // (EV 确认, 分支名)
+    for name in git::remote_branch_names(repo) {
+        let Some(RefVersion::Exact { major, minor }) = parse_ref_ue_version(&name) else {
+            continue;
+        };
+        if (major, minor) != target {
+            continue;
+        }
+        let confirmed = git::read_uplugin_at(repo, &name)
+            .ok()
+            .and_then(|(_, text)| uplugin_engine_version(&text))
+            .and_then(|ev| ev_major_minor(&ev))
+            .is_some_and(|em| em == target);
+        let better = match &best {
+            None => true,
+            Some((had_confirm, _)) => confirmed && !*had_confirm,
+        };
+        if better {
+            best = Some((confirmed, name));
+        }
+    }
+    best.map(|(_, name)| name)
 }
 
 /// 单引擎安装结果落 registry（Release 安装附带 tag 版本）并返回 DTO。
