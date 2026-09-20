@@ -6,10 +6,12 @@ use crate::install::copy::install_binary;
 use crate::registry::{
     self, PluginEntry, PluginKind, PluginSource, Registry,
 };
+use crate::sources::git;
 use crate::sources::local::inspect_local;
 use crate::uninstall::{plan_targets, uninstall as run_uninstall, RemovedTarget, UninstallReport};
 use serde::Serialize;
 use std::path::PathBuf;
+use tauri::{AppHandle, Emitter};
 
 /// 注册表目录：`%APPDATA%\dcc-plugin-manager`（设计 §3.3）。
 fn data_dir() -> PathBuf {
@@ -114,6 +116,46 @@ pub fn add_local_source(path: String) -> Result<PluginDto, String> {
     });
     save_registry(&reg)?;
     Ok(to_dto(reg.get(&inspected.id).expect("刚 upsert")))
+}
+
+// ————————————————— 添加 GitHub 源（M2）—————————————————
+
+/// clone/pull 缓存仓库 → 识别 → 登记。过程日志经 `install-log` 事件流式到 UI。
+#[tauri::command]
+pub fn add_git_source(app: AppHandle, url: String) -> Result<PluginDto, String> {
+    let url = url.trim().to_string();
+    let dir = data_dir();
+
+    let state = git::ensure_repo(&url, &dir, &mut |line| {
+        let _ = app.emit("install-log", line);
+    })
+    .map_err(|e| e.to_string())?;
+
+    let inspected =
+        inspect_local(&state.path).map_err(|e| format!("{e}（clone 成功但未识别为插件仓库）"))?;
+
+    let id = inspected.id.clone();
+    let mut reg = load_registry();
+    let installed = reg.get(&id).map(|e| e.installed.clone()).unwrap_or_default();
+    reg.upsert(PluginEntry {
+        id,
+        kind: inspected.kind,
+        source: PluginSource::Git {
+            url,
+            default_ref: Some(state.default_ref.clone()),
+        },
+        version: inspected.version,
+        commit: Some(state.head.clone()),
+        installed,
+    });
+    save_registry(&reg)?;
+    Ok(to_dto(reg.get(&inspected.id).expect("刚 upsert")))
+}
+
+/// git 源的引用枚举（compat 徽标用）。
+#[tauri::command]
+pub fn list_git_refs(url: String) -> Result<Vec<git::RefInfo>, String> {
+    git::list_refs(&url).map_err(|e| e.to_string())
 }
 
 // ————————————————— 安装（M1：本地源 → 二进制拷贝，仅 UE）—————————————————

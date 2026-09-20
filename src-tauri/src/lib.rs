@@ -14,6 +14,8 @@ pub fn run() {
             commands::detect_engines,
             commands::list_plugins,
             commands::add_local_source,
+            commands::add_git_source,
+            commands::list_git_refs,
             commands::install_local,
             commands::plan_uninstall,
             commands::do_uninstall,
