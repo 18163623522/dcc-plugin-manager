@@ -117,3 +117,12 @@ body {
     transform: translateY(0);
   }
 }
+
+/* 浏览器预览模式（非 Tauri 壳）：铺背景仅为展示毛玻璃，桌面端由真实桌面透出 */
+body.browser-preview {
+  background:
+    radial-gradient(1100px 550px at 12% -8%, rgba(64, 110, 178, 0.4), transparent 60%),
+    radial-gradient(850px 500px at 108% 18%, rgba(148, 74, 116, 0.32), transparent 55%),
+    radial-gradient(700px 700px at 60% 120%, rgba(46, 104, 84, 0.3), transparent 60%),
+    linear-gradient(160deg, #16171b, #22252c 55%, #16171b);
+}

@@ -5,7 +5,22 @@ import PluginsView from "./views/Plugins.vue";
 import EnginesView from "./views/Engines.vue";
 import SettingsView from "./views/Settings.vue";
 
-const win = getCurrentWindow();
+const inTauri = "__TAURI_INTERNALS__" in window;
+const win = inTauri ? getCurrentWindow() : null;
+if (!inTauri) {
+  // 浏览器预览模式：无 Tauri 壳，铺背景展示毛玻璃效果
+  document.body.classList.add("browser-preview");
+}
+
+function minimize() {
+  win?.minimize();
+}
+function closeApp() {
+  win?.close();
+}
+function toggleMax() {
+  win?.toggleMaximize();
+}
 
 interface NavItem {
   id: string;
@@ -29,10 +44,6 @@ function switchTo(id: string) {
     current.value = item.id;
     currentView.value = item.comp;
   }
-}
-
-function toggleMax() {
-  win.toggleMaximize();
 }
 </script>
 
@@ -68,13 +79,13 @@ function toggleMax() {
       <header id="titlebar" data-tauri-drag-region @dblclick="toggleMax">
         <div class="title" data-tauri-drag-region>{{ views.find((v) => v.id === current)?.label }}</div>
         <div class="win-ctrls">
-          <button class="wbtn" title="最小化" @click="win.minimize()">
+          <button class="wbtn" title="最小化" @click="minimize">
             <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 12h14" /></svg>
           </button>
           <button class="wbtn" title="最大化" @click="toggleMax">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1.5" /></svg>
           </button>
-          <button class="wbtn close" title="关闭" @click="win.close()">
+          <button class="wbtn close" title="关闭" @click="closeApp">
             <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>
