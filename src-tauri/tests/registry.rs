@@ -28,6 +28,7 @@ fn sample() -> Registry {
         },
         version: "0.8.2".into(),
         commit: Some("8ada112".into()),
+        local_digest: None,
         installed: vec![InstalledTarget {
             engine: "UE-5.8.1".into(),
             path: PathBuf::from(r"E:\UE\UE_5.8\Engine\Plugins\Marketplace\TrueGlow"),

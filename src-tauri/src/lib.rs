@@ -5,6 +5,7 @@ pub mod install;
 pub mod registry;
 pub mod sources;
 pub mod uninstall;
+pub mod update;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -17,6 +18,7 @@ pub fn run() {
             commands::add_local_source,
             commands::add_git_source,
             commands::list_git_refs,
+            commands::check_updates,
             commands::install_local,
             commands::plan_uninstall,
             commands::do_uninstall,

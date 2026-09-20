@@ -112,6 +112,7 @@ pub fn add_local_source(path: String) -> Result<PluginDto, String> {
         },
         version: inspected.version,
         commit: None,
+        local_digest: Some(crate::update::local_digest(&inspected.plugin_root).to_string()),
         installed,
     });
     save_registry(&reg)?;
@@ -146,6 +147,7 @@ pub fn add_git_source(app: AppHandle, url: String) -> Result<PluginDto, String> 
         },
         version: inspected.version,
         commit: Some(state.head.clone()),
+        local_digest: None,
         installed,
     });
     save_registry(&reg)?;
@@ -156,6 +158,29 @@ pub fn add_git_source(app: AppHandle, url: String) -> Result<PluginDto, String> 
 #[tauri::command]
 pub fn list_git_refs(url: String) -> Result<Vec<git::RefInfo>, String> {
     git::list_refs(&url).map_err(|e| e.to_string())
+}
+
+// ————————————————— 更新检查（M2）—————————————————
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateDto {
+    pub id: String,
+    pub state: crate::update::UpdateState,
+}
+
+/// 全量检查更新（git 源联网、本地源读盘）。前端列表出黄点用。
+#[tauri::command]
+pub fn check_updates() -> Vec<UpdateDto> {
+    let reg = load_registry();
+    let dir = data_dir();
+    reg.plugins
+        .iter()
+        .map(|e| UpdateDto {
+            id: e.id.clone(),
+            state: crate::update::check(e, &dir),
+        })
+        .collect()
 }
 
 // ————————————————— 安装（M1：本地源 → 二进制拷贝，仅 UE）—————————————————

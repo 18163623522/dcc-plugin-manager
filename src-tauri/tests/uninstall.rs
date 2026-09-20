@@ -61,6 +61,7 @@ fn local_entry(id: &str, installed: Vec<InstalledTarget>) -> PluginEntry {
         },
         version: "1.0".into(),
         commit: None,
+        local_digest: None,
         installed,
     }
 }

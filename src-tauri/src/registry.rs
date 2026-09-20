@@ -28,6 +28,9 @@ pub struct PluginEntry {
     pub version: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub commit: Option<String>,
+    /// 本地源内容摘要基线（update 比对用）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_digest: Option<String>,
     #[serde(default)]
     pub installed: Vec<InstalledTarget>,
 }
@@ -171,6 +174,7 @@ mod tests {
                 },
                 version: "0.8.2".into(),
                 commit: Some("8ada112".into()),
+                local_digest: None,
                 installed: vec![InstalledTarget {
                     engine: "UE-5.8.1".into(),
                     path: PathBuf::from(r"E:\UE\UE_5.8\Engine\Plugins\Marketplace\TrueGlow"),
@@ -198,6 +202,7 @@ mod tests {
             },
             version: "0.3.0".into(),
             commit: None,
+            local_digest: None,
             installed: vec![],
         });
         assert_eq!(r.plugins.len(), 2);
