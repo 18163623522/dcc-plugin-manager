@@ -1,0 +1,119 @@
+/* ============================================================
+   DCC Plugin Manager 设计 token（提取自 obs-float-bar，§6）
+   冲突优先级：本文件 > beautifului（组件形态）> winui3（控件细节）
+   ============================================================ */
+:root {
+  /* —— 外壳 —— */
+  --shell-bg: rgba(22, 22, 24, 0.88);
+  --shell-blur: 24px;
+  --shell-border: 1px solid rgba(255, 255, 255, 0.08);
+  --shell-radius: 16px;
+  --shell-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+
+  /* —— 分层底色 —— */
+  --bg-sunken: rgba(0, 0, 0, 0.22);   /* 信息条 / 日志面板 */
+  --bg-panel: rgba(0, 0, 0, 0.14);    /* 面板区再加一档暗 */
+  --bg-pop: rgba(32, 32, 36, 0.97);   /* 弹层深底 */
+
+  /* —— 文本层级 —— */
+  --text-1: rgba(255, 255, 255, 0.92); /* 主文本 */
+  --text-2: rgba(255, 255, 255, 0.55); /* 次级 */
+  --text-num: rgba(255, 255, 255, 0.82); /* 数值 */
+  --text-sep: rgba(255, 255, 255, 0.18); /* 分隔符 */
+
+  /* —— 语义色 —— */
+  --c-ok: #30d158;      /* 已装最新 */
+  --c-warn: #ffd60a;    /* 可更新 */
+  --c-idle: #8e8e93;    /* 未装 / 本地源 */
+  --c-err: #ff453a;     /* 失败 */
+  --c-primary: #0a84ff; /* 主操作 */
+  --c-busy: #ff9f0a;    /* 进行中 */
+
+  /* —— 控件 —— */
+  --btn-hover: rgba(255, 255, 255, 0.09);
+  --btn-active: rgba(255, 255, 255, 0.14);
+  --radius-ctrl: 4px;   /* 控件圆角（winui3） */
+  --radius-pop: 8px;    /* 弹层圆角（winui3） */
+
+  /* —— 字体 —— */
+  --font-stack: "MiSans", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+
+  /* —— 动效 —— */
+  --ease-panel: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  background: transparent;
+  font-family: var(--font-stack);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-1);
+  overflow: hidden;
+  user-select: none;
+}
+
+::selection {
+  background: rgba(10, 132, 255, 0.35);
+}
+
+/* 细滚动条（毛玻璃内嵌风格） */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 数字 / 版本号 */
+.num {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-num);
+  font-weight: 600;
+}
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 呼吸闪烁（失败徽标 1.2s） */
+@keyframes breathe {
+  50% {
+    opacity: 0.25;
+  }
+}
+.breathe {
+  animation: breathe 1.2s ease-in-out infinite;
+}
+
+/* 通用入场（面板展开 / toast） */
+@keyframes field-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
