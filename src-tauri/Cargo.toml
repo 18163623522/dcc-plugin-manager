@@ -25,6 +25,10 @@ serde_json = "1"
 winreg = "0.52"
 chrono = { version = "0.4", features = ["serde"] }
 
+[dev-dependencies]
+# 测试专用：制造 ERROR_SHARING_VIOLATION 文件锁
+windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem", "Win32_Foundation", "Win32_Security"] }
+
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
 codegen-units = 1

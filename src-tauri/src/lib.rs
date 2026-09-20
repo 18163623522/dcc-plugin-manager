@@ -1,4 +1,5 @@
 pub mod detect;
+pub mod install;
 pub mod registry;
 pub mod sources;
 
