@@ -88,8 +88,16 @@ pub fn inspect_local(path: &Path) -> Result<LocalPlugin, LocalInspectError> {
     Err(LocalInspectError::Unrecognized(path.to_path_buf()))
 }
 
-/// 本层优先（排序保证确定性），再一层子目录。
+/// 找 .uplugin：本层文件优先，再逐层下探子目录（最深第三层——
+/// 覆盖 UE 工程式仓库布局 `Repo/Plugins/<Name>/<Name>.uplugin`）。
 fn find_uplugin(dir: &Path) -> Option<PathBuf> {
+    find_uplugin_at(dir, 0)
+}
+
+fn find_uplugin_at(dir: &Path, depth: u32) -> Option<PathBuf> {
+    if depth > 2 {
+        return None;
+    }
     let entries = sorted_entries(dir)?;
     for e in &entries {
         if e.is_file() && e.extension().is_some_and(|x| x.eq_ignore_ascii_case("uplugin")) {
@@ -98,12 +106,8 @@ fn find_uplugin(dir: &Path) -> Option<PathBuf> {
     }
     for e in &entries {
         if e.is_dir() {
-            if let Some(sub) = sorted_entries(e) {
-                for s in sub {
-                    if s.is_file() && s.extension().is_some_and(|x| x.eq_ignore_ascii_case("uplugin")) {
-                        return Some(s);
-                    }
-                }
+            if let Some(found) = find_uplugin_at(e, depth + 1) {
+                return Some(found);
             }
         }
     }
@@ -203,6 +207,24 @@ mod tests {
         assert_eq!(p.version, "0.8.2");
         assert_eq!(p.engine_version.as_deref(), Some("4.26"));
         assert!(p.plugin_root.ends_with("TrueGlow"));
+    }
+
+    #[test]
+    fn recognizes_project_layout_repo() {
+        // UE 工程式仓库：Repo/Plugins/<Name>/<Name>.uplugin（第三层）
+        let dir = temp_tree(
+            "ue-project-layout",
+            &[
+                ("BetterHLSL.uproject", "{}"),
+                ("Source/BH.Target.cs", "x"),
+                ("Plugins/BetterHLSL/BetterHLSL.uplugin", r#"{"VersionName":"2.1.0"}"#),
+                ("Plugins/BetterHLSL/Source/b.cpp", "x"),
+            ],
+        );
+        let p = inspect_local(&dir).unwrap();
+        assert_eq!(p.id, "BetterHLSL");
+        assert_eq!(p.version, "2.1.0");
+        assert!(p.plugin_root.ends_with(r"Plugins\BetterHLSL"), "{:?}", p.plugin_root);
     }
 
     #[test]
