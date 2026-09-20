@@ -194,8 +194,8 @@ pub fn extract_zip(zip: &Path, dest: &Path) -> Result<(), ReleaseError> {
     Ok(())
 }
 
-/// Obsidian 散件下载：latest Release 的 main.js / manifest.json（必需）
-/// + styles.css（可选）各自独立附件 → 下载到 `dest_dir`。
+/// Obsidian 散件下载：latest Release 的 main.js 与 manifest.json（必需）、
+/// styles.css（可选），各自独立附件 → 下载到 `dest_dir`。
 /// 无散件但有 zip → 下载解压，从解压目录探测 manifest.json 所在层。
 /// 返回 (tag, 含三件套的目录)。
 pub fn install_release_files(

@@ -3,7 +3,7 @@
 use dcc_plugin_manager_lib::detect::houdini::HoudiniInstall;
 use dcc_plugin_manager_lib::install::houdini::install_houdini;
 use dcc_plugin_manager_lib::registry::{
-    self, InstallMethod, InstalledTarget, PluginEntry, PluginKind, PluginSource, Registry,
+    InstallMethod, InstalledTarget, PluginEntry, PluginKind, PluginSource, Registry,
 };
 use dcc_plugin_manager_lib::uninstall::uninstall;
 use std::fs;
@@ -22,7 +22,7 @@ fn temp(tag: &str) -> PathBuf {
     d
 }
 
-fn fake_hou(base: &PathBuf) -> HoudiniInstall {
+fn fake_hou(base: &Path) -> HoudiniInstall {
     HoudiniInstall {
         version: "21.0.440".into(),
         root: base.join("Houdini21"),
@@ -104,4 +104,34 @@ fn missing_json_sidecar_tolerated_on_uninstall() {
     let report = uninstall(&mut reg, "ghost", &[], true);
     assert_eq!(report.removed.len(), 1);
     assert!(!dir.exists());
+}
+
+#[test]
+fn missing_dir_still_cleans_sidecar_json() {
+    // 目录已手工删除但 packages json 残留 → 卸载清孤儿 json
+    let base = temp("orphanjson");
+    let json = base.join("houdini21.0").join("packages").join("gone.json");
+    std::fs::create_dir_all(json.parent().unwrap()).unwrap();
+    std::fs::write(&json, "{}").unwrap();
+
+    let mut reg = Registry::default();
+    reg.upsert(PluginEntry {
+        id: "gone".into(),
+        kind: PluginKind::Houdini,
+        source: PluginSource::Local { path: base.join("gone-src") },
+        version: "1.0".into(),
+        desc: None,
+        commit: None,
+        local_digest: None,
+        installed: vec![InstalledTarget {
+            engine: "Houdini-21.0.440".into(),
+            path: base.join("houdini21.0").join("plugins").join("gone"),
+            sidecar: Some(json.clone()),
+            method: InstallMethod::BinaryCopy,
+            installed_at: "t".into(),
+        }],
+    });
+    let report = uninstall(&mut reg, "gone", &[], true);
+    assert_eq!(report.missing.len(), 1);
+    assert!(!json.exists(), "孤儿 packages json 应被清理");
 }

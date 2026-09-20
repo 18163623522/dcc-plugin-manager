@@ -76,6 +76,12 @@ pub fn uninstall(
 
         let target = RemovedTarget { engine: t.engine.clone(), path: t.path.clone() };
         if !t.path.exists() {
+            // 目录已不在（手工删除等）也要清掉 sidecar（Houdini packages json），不留孤儿
+            if let Some(sidecar) = &t.sidecar {
+                if sidecar.is_file() {
+                    let _ = std::fs::remove_file(sidecar);
+                }
+            }
             report.missing.push(target);
             continue; // registry 记录清理（不回填 keep）
         }

@@ -71,18 +71,7 @@ pub struct CacheStats {
 }
 
 fn dir_size_bytes(dir: &std::path::Path) -> u64 {
-    let mut total = 0u64;
-    if let Ok(it) = std::fs::read_dir(dir) {
-        for e in it.flatten() {
-            let p = e.path();
-            if p.is_dir() {
-                total += dir_size_bytes(&p);
-            } else if let Ok(m) = e.metadata() {
-                total += m.len();
-            }
-        }
-    }
-    total
+    crate::preflight::dir_size(dir)
 }
 
 #[tauri::command]
@@ -282,11 +271,7 @@ pub fn add_git_source(app: AppHandle, url: String) -> Result<PluginDto, String> 
     Ok(to_dto(reg.get(&inspected.id).expect("刚 upsert")))
 }
 
-/// git 源的引用枚举（compat 徽标用）。
-#[tauri::command]
-pub fn list_git_refs(url: String) -> Result<Vec<git::RefInfo>, String> {
-    git::list_refs(&url).map_err(|e| e.to_string())
-}
+/// git 源的引用枚举已内联进 compat_map（前端不直接消费，命令移除）。
 
 // ————————————————— 更新检查（M2）—————————————————
 
@@ -612,11 +597,17 @@ fn install_one(
                 .unwrap_or_else(|| state.default_ref.clone());
             git::checkout(&state.path, &git_ref)
                 .map_err(|e| format!("checkout {git_ref} 失败：{e}"))?;
-            emit(&format!("构建分支：{git_ref}"));
 
-            // 2. Release 附件优先
+            // 2. Release 附件优先（与所选分支可能不一致——附版本来源提示）
             match crate::install::release::install_release(url, engine, data_dir, &mut |l| emit(l)) {
-                Ok((target, tag)) => Ok((target, Some(tag), InstallMethod::Release)),
+                Ok((target, tag)) => {
+                    if git_ref != state.default_ref {
+                        emit(&format!(
+                            "⚠ 安装的是 Release {tag}，未按所选分支 {git_ref} 构建（Release 优先）"
+                        ));
+                    }
+                    Ok((target, Some(tag), InstallMethod::Release))
+                }
                 Err(rel_err) => {
                     let fallback_build = matches!(
                         rel_err,
@@ -631,6 +622,7 @@ fn install_one(
                             "无 Release 附件且 VS C++ 工具链不可用——无法源码构建（{rel_err}）"
                         ));
                     }
+                    emit(&format!("构建分支：{git_ref}"));
                     let built = crate::install::build::build_plugin(token, &state.path, engine, data_dir, &mut |l| emit(l))
                         .map_err(|e| e.to_string())?;
                     crate::install::copy::install_binary(&built, engine)

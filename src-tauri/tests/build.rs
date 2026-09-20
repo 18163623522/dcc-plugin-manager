@@ -56,11 +56,11 @@ const SLOW_BAT: &[&str] = &[
     "exit /b 0",
 ];
 
-fn engine_with(runuat: &PathBuf) -> UeEngine {
+fn engine_with(runuat: &Path) -> UeEngine {
     UeEngine {
         version: "0.0.0".into(),
         root: runuat.parent().unwrap().to_path_buf(),
-        runuat: runuat.clone(),
+        runuat: runuat.to_path_buf(),
     }
 }
 
@@ -155,16 +155,11 @@ fn cancel_kills_process_tree() {
     let seen_flag = seen.clone();
     let root2 = root.clone();
     let handle = std::thread::spawn(move || {
-        let mut r = build_plugin("t-cancel", &src, &engine_with(&root2.join("slow.bat")), &root2, &mut |l| {
+        build_plugin("t-cancel", &src, &engine_with(&root2.join("slow.bat")), &root2, &mut |l| {
             if l.contains("started") {
                 seen_flag.store(true, Ordering::SeqCst);
             }
-        });
-        if let Ok(p) = &r {
-            // 慢构建被取消时不应走到成功分支；若进程树杀失败会 20 秒后成功——测试断言取消
-            let _ = p;
-        }
-        r
+        })
     });
 
     // 等 started 行出现（最多 10 秒）

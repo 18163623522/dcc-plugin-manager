@@ -287,7 +287,7 @@ pub fn disk_free_bytes(any_path: &Path) -> u64 {
     }
 }
 
-fn dir_size(dir: &Path) -> u64 {
+pub(crate) fn dir_size(dir: &Path) -> u64 {
     let mut total = 0u64;
     if let Ok(it) = std::fs::read_dir(dir) {
         for e in it.flatten() {
@@ -343,14 +343,14 @@ mod tests {
     #[test]
     fn disk_decisions() {
         let gb = 1024 * 1024 * 1024u64;
-        let ok = disk_space_item(50 * gb, 10 * gb, 1 * gb, 2 * gb);
+        let ok = disk_space_item(50 * gb, 10 * gb, gb, 2 * gb);
         assert!(ok.ok);
-        let cache_short = disk_space_item(50 * gb, 1 * gb, 1 * gb, 2 * gb);
+        let cache_short = disk_space_item(50 * gb, gb, gb, 2 * gb);
         assert!(!cache_short.ok && !cache_short.blocking);
         assert!(cache_short.message.contains("构建缓存盘"));
-        let engine_short = disk_space_item(1 * gb, 10 * gb, 5 * gb, 2 * gb);
+        let engine_short = disk_space_item(gb, 10 * gb, 5 * gb, 2 * gb);
         assert!(engine_short.message.contains("引擎盘"));
-        let both = disk_space_item(1 * gb, 1 * gb, 5 * gb, 2 * gb);
+        let both = disk_space_item(gb, gb, 5 * gb, 2 * gb);
         assert!(both.message.contains("构建盘") && both.message.contains("引擎盘"));
     }
 

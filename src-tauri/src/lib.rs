@@ -19,7 +19,6 @@ pub fn run() {
             commands::list_plugins,
             commands::add_local_source,
             commands::add_git_source,
-            commands::list_git_refs,
             commands::check_updates,
             commands::compat_for,
             commands::preflight_for,

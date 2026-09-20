@@ -56,7 +56,7 @@ pub fn detect_ue_engines(extra_roots: &[PathBuf]) -> Vec<UeEngine> {
     }
 
     engines.retain(|e| e.runuat.is_file());
-    engines.sort_by(|a, b| version_key(&b.version).cmp(&version_key(&a.version)));
+    engines.sort_by_key(|e| std::cmp::Reverse(version_key(&e.version)));
     engines
 }
 

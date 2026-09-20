@@ -118,6 +118,10 @@ onMounted(() => {
   if (inTauri) {
     listen<string>("install-log", (e) => {
       liveLog.value.push(e.payload);
+      // 长构建（RunUAT/pnpm）日志无上限会撑内存——滑窗保留尾部
+      if (liveLog.value.length > 800) {
+        liveLog.value.splice(0, liveLog.value.length - 800);
+      }
     }).then((u) => (unlistenLog = u));
   }
 });

@@ -178,7 +178,7 @@ pub fn build_plugin(
 
     // 产物探测：<Package>\<Name> 或 <Package> 本身
     let nested = package.join(&id);
-    if nested.join(&format!("{id}.uplugin")).is_file() {
+    if nested.join(id.clone() + ".uplugin").is_file() {
         return Ok(nested);
     }
     if uplugin_in_dir(&package) {
@@ -222,20 +222,6 @@ fn has_cmd_metachars(s: &str) -> bool {
     s.chars().any(|c| META.contains(&c))
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn metachar_detection() {
-        use super::has_cmd_metachars;
-        assert!(!has_cmd_metachars(r"D:\repos\TrueGlow\TrueGlow.uplugin"));
-        assert!(!has_cmd_metachars(r"C:\Program Files\Epic\UE_5.7\Engine\Build\BatchFiles\RunUAT.bat"));
-        // 恶意仓库名场景
-        assert!(has_cmd_metachars("D:\\cache\\repos\\Evil\u{26}calc\\Evil.uplugin"));
-        assert!(has_cmd_metachars("D:\\x\\a\u{7C}b\\p.uplugin"));
-        assert!(has_cmd_metachars("D:\\x\\100\u{25}\\p.uplugin"));
-    }
-}
-
 fn find_uplugin(dir: &Path) -> Option<PathBuf> {
     if let Ok(it) = std::fs::read_dir(dir) {
         let mut files: Vec<PathBuf> = it
@@ -262,4 +248,18 @@ fn find_uplugin(dir: &Path) -> Option<PathBuf> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn metachar_detection() {
+        use super::has_cmd_metachars;
+        assert!(!has_cmd_metachars(r"D:\repos\TrueGlow\TrueGlow.uplugin"));
+        assert!(!has_cmd_metachars(r"C:\Program Files\Epic\UE_5.7\Engine\Build\BatchFiles\RunUAT.bat"));
+        // 恶意仓库名场景
+        assert!(has_cmd_metachars("D:\\cache\\repos\\Evil\u{26}calc\\Evil.uplugin"));
+        assert!(has_cmd_metachars("D:\\x\\a\u{7C}b\\p.uplugin"));
+        assert!(has_cmd_metachars("D:\\x\\100\u{25}\\p.uplugin"));
+    }
 }

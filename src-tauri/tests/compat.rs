@@ -50,7 +50,7 @@ fn make_repo(root: &Path, name: &str, default_ev: Option<&str>, branches: &[(&st
         sh(Some(&dir), &["checkout", "-q", "-b", br]);
         write_uplugin(&dir, name, *ev);
         sh(Some(&dir), &["add", "-A"]);
-        sh(Some(&dir), &["commit", "-q", "--allow-empty", "-m", &format!("{br}")]);
+        sh(Some(&dir), &["commit", "-q", "--allow-empty", "-m", br]);
     }
     sh(Some(&dir), &["checkout", "-q", "main"]);
     dir
