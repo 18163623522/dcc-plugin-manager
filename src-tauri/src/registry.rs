@@ -26,6 +26,9 @@ pub struct PluginEntry {
     pub kind: PluginKind,
     pub source: PluginSource,
     pub version: String,
+    /// 展示说明：GitHub 仓库描述 / uplugin Description（缺省回落占位文案）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desc: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub commit: Option<String>,
     /// 本地源内容摘要基线（update 比对用）
@@ -173,6 +176,7 @@ mod tests {
                     default_ref: Some("main".into()),
                 },
                 version: "0.8.2".into(),
+                desc: None,
                 commit: Some("8ada112".into()),
                 local_digest: None,
                 installed: vec![InstalledTarget {
@@ -201,6 +205,7 @@ mod tests {
                 path: PathBuf::from(r"D:\AI\SimInspector"),
             },
             version: "0.3.0".into(),
+            desc: None,
             commit: None,
             local_digest: None,
             installed: vec![],

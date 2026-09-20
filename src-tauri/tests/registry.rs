@@ -27,6 +27,7 @@ fn sample() -> Registry {
             default_ref: Some("main".into()),
         },
         version: "0.8.2".into(),
+        desc: None,
         commit: Some("8ada112".into()),
         local_digest: None,
         installed: vec![InstalledTarget {

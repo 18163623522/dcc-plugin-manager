@@ -84,7 +84,9 @@ fn to_dto(e: &PluginEntry) -> PluginDto {
         status: if installed { "installed" } else { "idle" }.into(),
         origin,
         source: source.into(),
-        desc: if source == "local" { "本地目录源".into() } else { "GitHub 源".into() },
+        desc: e.desc.clone().unwrap_or_else(|| {
+            if source == "local" { "本地目录源".into() } else { "GitHub 源".into() }
+        }),
     }
 }
 
@@ -112,6 +114,7 @@ pub fn add_local_source(path: String) -> Result<PluginDto, String> {
         version: inspected.version,
         commit: None,
         local_digest: Some(crate::update::local_digest(&inspected.plugin_root).to_string()),
+        desc: inspected.desc.clone(),
         installed,
     });
     save_registry(&reg)?;
@@ -135,6 +138,8 @@ pub fn add_git_source(app: AppHandle, url: String) -> Result<PluginDto, String> 
         inspect_local(&state.path).map_err(|e| format!("{e}（clone 成功但未识别为插件仓库）"))?;
 
     let id = inspected.id.clone();
+    // 卡片说明：仓库描述优先，uplugin Description 兜底（提前取，url 随后 move 进 source）
+    let desc = git::repo_description(&url).or_else(|| inspected.desc.clone());
     let mut reg = load_registry();
     let installed = reg.get(&id).map(|e| e.installed.clone()).unwrap_or_default();
     reg.upsert(PluginEntry {
@@ -145,6 +150,7 @@ pub fn add_git_source(app: AppHandle, url: String) -> Result<PluginDto, String> 
             default_ref: Some(state.default_ref.clone()),
         },
         version: inspected.version,
+        desc,
         commit: Some(state.head.clone()),
         local_digest: None,
         installed,

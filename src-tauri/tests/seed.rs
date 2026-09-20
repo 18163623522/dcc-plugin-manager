@@ -3,6 +3,7 @@
 //! 语义与 add_git_source / add_local_source 完全一致（含已装记录保留）。
 
 use dcc_plugin_manager_lib::registry::{self, PluginEntry, PluginSource};
+use dcc_plugin_manager_lib::sources::git;
 use dcc_plugin_manager_lib::sources::git::ensure_repo;
 use dcc_plugin_manager_lib::sources::local::inspect_local;
 use dcc_plugin_manager_lib::update::local_digest;
@@ -76,6 +77,8 @@ fn seed_git(reg: &mut registry::Registry, url: &str, data: &Path) -> Result<Stri
     let url = url.trim().to_string();
     let state = ensure_repo(&url, data, &mut |l| println!("    {l}")).map_err(|e| e.to_string())?;
     let inspected = inspect_local(&state.path).map_err(|e| e.to_string())?;
+    // 仓库描述优先，uplugin Description 兜底（提前取，url 随后 move 进 source）
+    let desc = git::repo_description(&url).or_else(|| inspected.desc.clone());
     let installed = reg.get(&inspected.id).map(|e| e.installed.clone()).unwrap_or_default();
     let id = inspected.id.clone();
     reg.upsert(PluginEntry {
@@ -86,6 +89,7 @@ fn seed_git(reg: &mut registry::Registry, url: &str, data: &Path) -> Result<Stri
             default_ref: Some(state.default_ref.clone()),
         },
         version: inspected.version,
+        desc,
         commit: Some(state.head.clone()),
         local_digest: None,
         installed,
@@ -104,6 +108,7 @@ fn seed_local(reg: &mut registry::Registry, path: &Path) -> Result<String, Strin
             path: inspected.plugin_root.clone(),
         },
         version: inspected.version,
+        desc: inspected.desc.clone(),
         commit: None,
         local_digest: Some(local_digest(&inspected.plugin_root).to_string()),
         installed,

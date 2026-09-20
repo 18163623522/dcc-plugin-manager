@@ -152,6 +152,53 @@ pub fn checkout(path: &Path, git_ref: &str) -> Result<(), GitError> {
     Ok(())
 }
 
+/// 仓库描述（卡片说明用）：gh api 优先（私仓/免限流），curl 匿名回退；失败返回 None 不阻塞。
+pub fn repo_description(url: &str) -> Option<String> {
+    #[cfg(windows)]
+    fn no_window(mut cmd: Command) -> Command {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000);
+        cmd
+    }
+    #[cfg(not(windows))]
+    fn no_window(cmd: Command) -> Command {
+        cmd
+    }
+
+    let full = repo_full_name(url)?;
+    let raw = if gh_available() {
+        let o = no_window(Command::new("gh"))
+            .args(["api", &format!("repos/{full}"), "--jq", ".description"])
+            .output()
+            .ok()?;
+        if !o.status.success() {
+            return None;
+        }
+        String::from_utf8_lossy(&o.stdout).trim().to_string()
+    } else {
+        let o = no_window(Command::new("curl"))
+            .args([
+                "-sSL",
+                "-H",
+                "User-Agent: dcc-plugin-manager",
+                &format!("https://api.github.com/repos/{full}"),
+            ])
+            .output()
+            .ok()?;
+        let text = String::from_utf8_lossy(&o.stdout).into_owned();
+        return serde_json::from_str::<serde_json::Value>(&text)
+            .ok()?
+            .get("description")?
+            .as_str()
+            .map(|s| s.trim().to_string());
+    };
+    if raw.is_empty() || raw == "null" {
+        return None;
+    }
+    // gh --jq 输出裸字符串；意外带引号时剥掉
+    Some(raw.trim_matches('"').to_string())
+}
+
 /// 读仓库当前状态（HEAD + 默认分支）。
 pub fn repo_state(path: &Path) -> Result<RepoState, GitError> {
     let head_full = ok_or(git(&["rev-parse", "HEAD"], Some(path))?, "rev-parse")?;

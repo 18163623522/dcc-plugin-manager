@@ -19,6 +19,8 @@ pub struct LocalPlugin {
     pub version: String,
     /// UE：EngineVersion 字段（可选，compat 用）
     pub engine_version: Option<String>,
+    /// uplugin 的 Description 字段（可选；git 源会被仓库描述覆盖）
+    pub desc: Option<String>,
     /// uplugin 所在目录（UE 安装拷贝源）或包根目录（Houdini）
     pub plugin_root: PathBuf,
 }
@@ -61,13 +63,14 @@ pub fn inspect_local(path: &Path) -> Result<LocalPlugin, LocalInspectError> {
     // UE：深度 ≤2 找 .uplugin（本层 → 一层子目录，常见仓库布局 Repo/<Plugin>/<Plugin>.uplugin）
     if let Some(uplugin) = find_uplugin(path) {
         let id = uplugin.file_stem().unwrap_or_default().to_string_lossy().into_owned();
-        let (friendly_name, version, engine_version) = parse_uplugin(&uplugin)?;
+        let (friendly_name, version, engine_version, desc) = parse_uplugin(&uplugin)?;
         return Ok(LocalPlugin {
             kind: PluginKind::Ue,
             friendly_name: if friendly_name.is_empty() { id.clone() } else { friendly_name },
             id,
             version,
             engine_version,
+            desc,
             plugin_root: uplugin.parent().unwrap_or(path).to_path_buf(),
         });
     }
@@ -81,6 +84,7 @@ pub fn inspect_local(path: &Path) -> Result<LocalPlugin, LocalInspectError> {
             id,
             version: String::new(),
             engine_version: None,
+            desc: None,
             plugin_root: path.to_path_buf(),
         });
     }
@@ -120,10 +124,10 @@ fn sorted_entries(dir: &Path) -> Option<Vec<PathBuf>> {
     Some(v)
 }
 
-/// 读 uplugin 的 FriendlyName / VersionName / EngineVersion（容错 BOM 与宽松 JSON）。
+/// 读 uplugin 的 FriendlyName / VersionName / EngineVersion / Description（容错 BOM 与宽松 JSON）。
 fn parse_uplugin(
     uplugin: &Path,
-) -> Result<(String, String, Option<String>), LocalInspectError> {
+) -> Result<(String, String, Option<String>, Option<String>), LocalInspectError> {
     let text = fs::read_to_string(uplugin).map_err(|e| LocalInspectError::BadUplugin {
         path: uplugin.to_path_buf(),
         reason: e.to_string(),
@@ -138,6 +142,7 @@ fn parse_uplugin(
         get("FriendlyName").unwrap_or_default(),
         get("VersionName").unwrap_or_default(),
         get("EngineVersion"),
+        get("Description"),
     ))
 }
 

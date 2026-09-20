@@ -60,6 +60,7 @@ fn local_entry(id: &str, installed: Vec<InstalledTarget>) -> PluginEntry {
             path: PathBuf::from(r"D:\sources\{id}"),
         },
         version: "1.0".into(),
+        desc: None,
         commit: None,
         local_digest: None,
         installed,
