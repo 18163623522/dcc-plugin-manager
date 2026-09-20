@@ -2,6 +2,7 @@ pub mod commands;
 pub mod compat;
 pub mod detect;
 pub mod install;
+pub mod preflight;
 pub mod registry;
 pub mod sources;
 pub mod uninstall;

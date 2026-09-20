@@ -26,6 +26,7 @@ serde_json = "1"
 winreg = "0.52"
 chrono = { version = "0.4", features = ["serde"] }
 regex = "1"
+windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem", "Win32_Foundation"] }
 
 [dev-dependencies]
 # 测试专用：制造 ERROR_SHARING_VIOLATION 文件锁
