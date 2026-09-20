@@ -136,19 +136,20 @@ function onlineUrl(p: PluginRow): string | null {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  padding: 14px 14px 10px;
+  padding: 14px 14px 11px;
   border-radius: var(--radius-pop);
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  /* 隔层靠色块不靠线：无描边，填充分层 + hover 提亮 */
+  background: rgba(255, 255, 255, 0.045);
+  border: none;
+  transition: background 0.15s, transform 0.15s;
 }
 .card:hover {
-  background: rgba(255, 255, 255, 0.055);
-  border-color: rgba(255, 255, 255, 0.11);
+  background: rgba(255, 255, 255, 0.07);
   transform: translateY(-1px);
 }
+/* 失败态：左侧细红条示意，不再整圈红描边 */
 .card.stale {
-  border-color: rgba(255, 69, 58, 0.35);
+  box-shadow: inset 2.5px 0 0 rgba(255, 69, 58, 0.65);
 }
 
 .head {
@@ -226,9 +227,8 @@ function onlineUrl(p: PluginRow): string | null {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 3px;
-  padding-top: 9px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  margin-top: 4px;
+  /* 去横隔线：靠间距与字号/透明度分层，不切割卡片 */
 }
 .origin {
   font-family: var(--font-mono);
