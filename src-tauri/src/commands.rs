@@ -2,9 +2,8 @@
 
 use crate::detect::houdini::{detect_houdini, HoudiniInstall};
 use crate::detect::ue::{detect_ue_engines, UeEngine};
-use crate::install::copy::install_binary;
 use crate::registry::{
-    self, PluginEntry, PluginKind, PluginSource, Registry,
+    self, InstalledTarget, PluginEntry, PluginKind, PluginSource, Registry,
 };
 use crate::sources::git;
 use crate::sources::local::inspect_local;
@@ -183,7 +182,44 @@ pub fn check_updates() -> Vec<UpdateDto> {
         .collect()
 }
 
-// ————————————————— 安装（M1：本地源 → 二进制拷贝，仅 UE）—————————————————
+// ————————————————— 兼容矩阵（M2）—————————————————
+
+#[tauri::command]
+pub fn compat_for(app: AppHandle, id: String) -> Result<Vec<crate::compat::EngineCompat>, String> {
+    let reg = load_registry();
+    let Some(entry) = reg.plugins.iter().find(|p| p.id == id) else {
+        return Err(format!("条目不存在：{id}"));
+    };
+    let PluginSource::Git { url, .. } = &entry.source else {
+        return Ok(vec![]); // 本地源无矩阵（用户自行确认版本）
+    };
+
+    let dir = data_dir();
+    // 确保缓存仓库在（add 时已 clone；被清缓存也能自愈）
+    let state = git::ensure_repo(url, &dir, &mut |l| {
+        let _ = app.emit("install-log", l);
+    })
+    .map_err(|e| e.to_string())?;
+
+    let refs = git::list_refs(url).map_err(|e| e.to_string())?;
+    let engines = crate::detect::ue::detect_ue_engines(&[]);
+    let installed: Vec<String> = entry
+        .installed
+        .iter()
+        .map(|t| t.engine.split_once('-').map(|(_, v)| v.to_string()).unwrap_or_else(|| t.engine.clone()))
+        .collect();
+
+    Ok(crate::compat::compute(&crate::compat::CompatInput {
+        repo_path: &state.path,
+        default_ref: &state.default_ref,
+        repo_name: &git::repo_name(url).unwrap_or_default(),
+        refs: &refs,
+        engines: &engines,
+        installed: &installed,
+    }))
+}
+
+// ————————————————— 安装（本地源拷贝；git 源 Release 优先）—————————————————
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -194,7 +230,7 @@ pub struct InstallResultDto {
 }
 
 #[tauri::command]
-pub fn install_local(id: String, engines: Vec<String>) -> Vec<InstallResultDto> {
+pub fn install_local(app: AppHandle, id: String, engines: Vec<String>) -> Vec<InstallResultDto> {
     let mut reg = load_registry();
     let Some(entry) = reg.plugins.iter().find(|p| p.id == id).cloned() else {
         return vec![InstallResultDto {
@@ -204,48 +240,69 @@ pub fn install_local(id: String, engines: Vec<String>) -> Vec<InstallResultDto> 
         }];
     };
 
-    let plugin_root = match &entry.source {
-        PluginSource::Local { path } => path.clone(),
-        PluginSource::Git { .. } => {
-            return engines
-                .iter()
-                .map(|e| InstallResultDto {
-                    engine: e.clone(),
-                    ok: false,
-                    error: Some("GitHub 源安装将在里程碑 2 提供（Release 下载 + 构建兜底）".into()),
-                })
-                .collect();
-        }
-    };
-
-    let detected = detect_ue_engines(&[]);
+    let detected = crate::detect::ue::detect_ue_engines(&[]);
     let mut results = Vec::new();
-    for label in &engines {
-        // label 形如 "5.8.1"（前端传短标签）
-        let Some(engine) = detected.iter().find(|e| &e.version == label) else {
-            results.push(InstallResultDto {
-                engine: label.clone(),
-                ok: false,
-                error: Some(format!("未检测到 UE {label}")),
-            });
-            continue;
-        };
-        match install_binary(&plugin_root, engine) {
-            Ok(target) => {
-                let entry = reg.plugins.iter_mut().find(|p| p.id == id).expect("已克隆校验");
-                entry.installed.retain(|t| t.engine != target.engine);
-                entry.installed.push(target);
-                results.push(InstallResultDto { engine: label.clone(), ok: true, error: None });
+
+    match entry.source.clone() {
+        PluginSource::Local { path } => {
+            for label in &engines {
+                let result = detected
+                    .iter()
+                    .find(|e| &e.version == label)
+                    .ok_or_else(|| format!("未检测到 UE {label}"))
+                    .and_then(|engine| {
+                        crate::install::copy::install_binary(&path, engine).map(|t| (t, None)).map_err(|e| e.to_string())
+                    });
+                results.push(apply_result(&mut reg, &entry.id, label, result));
             }
-            Err(e) => results.push(InstallResultDto {
-                engine: label.clone(),
-                ok: false,
-                error: Some(e.to_string()),
-            }),
+        }
+        PluginSource::Git { url, .. } => {
+            // Release 附件优先；无 Release/无 zip → 报错引导 M3 构建
+            let data = data_dir();
+            for label in &engines {
+                let result = detected
+                    .iter()
+                    .find(|e| &e.version == label)
+                    .ok_or_else(|| format!("未检测到 UE {label}"))
+                    .and_then(|engine| {
+                        crate::install::release::install_release(&url, engine, &data, &mut |l| {
+                            let _ = app.emit("install-log", l);
+                        })
+                        .map(|(t, tag)| (t, Some(tag)))
+                        .map_err(|e| e.to_string())
+                    });
+                results.push(apply_result(&mut reg, &entry.id, label, result));
+            }
         }
     }
+
     let _ = save_registry(&reg);
     results
+}
+
+/// 单引擎安装结果落 registry（Release 安装附带 tag 版本）并返回 DTO。
+fn apply_result(
+    reg: &mut Registry,
+    id: &str,
+    label: &str,
+    result: Result<(InstalledTarget, Option<String>), String>,
+) -> InstallResultDto {
+    match result {
+        Ok((target, tag)) => {
+            if let Some(e) = reg.plugins.iter_mut().find(|p| p.id == id) {
+                if let Some(tag) = tag.as_deref() {
+                    let v = tag.trim_start_matches(['v', 'V']);
+                    if !v.is_empty() {
+                        e.version = v.to_string();
+                    }
+                }
+                e.installed.retain(|t| t.engine != target.engine);
+                e.installed.push(target);
+            }
+            InstallResultDto { engine: label.to_string(), ok: true, error: None }
+        }
+        Err(err) => InstallResultDto { engine: label.to_string(), ok: false, error: Some(err) },
+    }
 }
 
 // ————————————————— 卸载 —————————————————

@@ -21,8 +21,10 @@ use std::sync::LazyLock;
 pub enum CompatStatus {
     Installed,
     /// { kind, gitRef, confirmed }
+    #[serde(rename_all = "camelCase")]
     Installable { git_ref: String, confirmed: bool },
     Unverified,
+    #[serde(rename_all = "camelCase")]
     Incompatible { reason: String },
 }
 

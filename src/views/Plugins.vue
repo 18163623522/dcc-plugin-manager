@@ -1,21 +1,24 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
-import { open } from "@tauri-apps/plugin-dialog";
+import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
 import { openPath } from "@tauri-apps/plugin-opener";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import FilterBar from "../components/FilterBar.vue";
 import PluginList from "../components/PluginList.vue";
 import InstallDialog from "../components/InstallDialog.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
+import AddSourceDialog from "../components/AddSourceDialog.vue";
 import {
   call,
   inTauri,
   DEFAULT_FILTER,
+  type CompatStatusDto,
   type FilterState,
   type InstallResult,
   type PluginRow,
   type TargetPath,
   type UeEngine,
   type UninstallReport,
+  type UpdateDto,
 } from "../api";
 
 /* ———— 浏览器预览模式的占位数据（真实数据走 command）———— */
@@ -37,7 +40,7 @@ let toastTimer: number | undefined;
 function showToast(msg: string, tone: "ok" | "err" | "warn" = "ok") {
   toast.value = { msg, tone };
   clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => (toast.value = null), 4000);
+  toastTimer = window.setTimeout(() => (toast.value = null), 4500);
 }
 
 async function refresh() {
@@ -61,10 +64,37 @@ async function loadEngines() {
   }
 }
 
+/** 更新检查：远端新版本 → 黄点 + latest 字段 */
+async function checkUpdates() {
+  if (!inTauri) return;
+  try {
+    const updates = await call<UpdateDto[]>("check_updates");
+    rows.value = rows.value.map((r) => {
+      const u = updates.find((x) => x.id === r.id);
+      if (!u || u.state.kind !== "available") return { ...r, status: r.status === "updatable" ? "installed" : r.status };
+      const tag = u.state.newVersion;
+      return {
+        ...r,
+        status: r.status === "idle" ? "idle" : "updatable",
+        latest: tag === "目录内容已变化" ? r.version : tag,
+      };
+    });
+  } catch {
+    /* 更新检查失败不打扰列表 */
+  }
+}
+
+let unlistenLog: UnlistenFn | null = null;
 onMounted(() => {
   refresh();
   loadEngines();
+  if (inTauri) {
+    listen<string>("install-log", (e) => {
+      addLog.value.push(e.payload);
+    }).then((u) => (unlistenLog = u));
+  }
 });
+onUnmounted(() => unlistenLog?.());
 
 const filtered = computed(() => {
   const q = filter.search.trim().toLowerCase();
@@ -87,30 +117,70 @@ function clearFilters() {
   Object.assign(filter, DEFAULT_FILTER);
 }
 
-/* ———— 添加本地源 ———— */
-async function addSource() {
-  if (!inTauri) return showToast("浏览器预览模式：请在应用内添加源", "warn");
+/* ———— 添加源 ———— */
+const addDlg = ref(false);
+const addBusy = ref(false);
+const addLog = ref<string[]>([]);
+
+function openAdd() {
+  addLog.value = [];
+  addDlg.value = true;
+}
+
+async function addLocal(path: string) {
+  addBusy.value = true;
   try {
-    const dir = await open({ directory: true, title: "选择插件目录（含 .uplugin 或 Houdini 包）" });
-    if (!dir || typeof dir !== "string") return;
-    const added = await call<PluginRow>("add_local_source", { path: dir });
+    const added = await call<PluginRow>("add_local_source", { path });
+    addDlg.value = false;
     await refresh();
+    await checkUpdates();
     showToast(`已添加 ${added.name}（${added.host}）`, "ok");
   } catch (e) {
     showToast(`添加失败：${e}`, "err");
   }
+  addBusy.value = false;
+}
+
+async function addGit(url: string) {
+  addBusy.value = true;
+  try {
+    const added = await call<PluginRow>("add_git_source", { url });
+    addDlg.value = false;
+    await refresh();
+    await checkUpdates();
+    showToast(`已添加 ${added.name}（GitHub 源）`, "ok");
+  } catch (e) {
+    showToast(`添加失败：${e}`, "err");
+    addLog.value.push(`✗ ${e}`);
+  }
+  addBusy.value = false;
 }
 
 /* ———— 安装 ———— */
 const installDlg = ref(false);
 const installTarget = ref<PluginRow | null>(null);
-function askInstall(id: string) {
+const installCompat = ref<Record<string, CompatStatusDto>>({});
+
+async function askInstall(id: string) {
   const p = rows.value.find((r) => r.id === id);
   if (!p) return;
   if (p.host === "Houdini") return showToast("Houdini 安装在里程碑 4 提供", "warn");
   installTarget.value = p;
+  installCompat.value = {};
+  // git 源拉兼容矩阵（联网，可能几秒）
+  if (inTauri && p.source === "github") {
+    try {
+      const compat = await call<{ engine: string; status: CompatStatusDto }[]>("compat_for", { id });
+      const map: Record<string, CompatStatusDto> = {};
+      for (const c of compat) map[c.engine] = c.status;
+      installCompat.value = map;
+    } catch (e) {
+      showToast(`兼容矩阵查询失败：${e}`, "warn");
+    }
+  }
   installDlg.value = true;
 }
+
 async function doInstall(selected: string[]) {
   installDlg.value = false;
   const p = installTarget.value;
@@ -122,7 +192,10 @@ async function doInstall(selected: string[]) {
     if (bad.length === 0) {
       showToast(`已安装到 ${ok.map((r) => r.engine).join("、")}`, "ok");
     } else {
-      showToast(`成功 ${ok.length} / 失败 ${bad.length}：${bad[0].error ?? ""}`, bad.length && ok.length ? "warn" : "err");
+      showToast(
+        `成功 ${ok.length} / 失败 ${bad.length}：${bad[0].error ?? ""}`,
+        ok.length ? "warn" : "err",
+      );
     }
   } catch (e) {
     showToast(`安装失败：${e}`, "err");
@@ -180,7 +253,7 @@ async function openDir(id: string) {
       if (paths[0]) return void (await openPath(paths[0].path));
     }
     if (p.source === "local") await openPath(p.origin);
-    else showToast("GitHub 源无本地目录", "warn");
+    else showToast("GitHub 源无本地目录（缓存目录见设置）", "warn");
   } catch {
     showToast("打开目录失败", "err");
   }
@@ -189,7 +262,7 @@ async function openDir(id: string) {
 
 <template>
   <div class="page">
-    <FilterBar :model-value="filter" @update:model-value="applyFilter" @add="addSource" />
+    <FilterBar :model-value="filter" @update:model-value="applyFilter" @add="openAdd" />
     <PluginList
       :plugins="filtered"
       @primary="askInstall"
@@ -198,10 +271,19 @@ async function openDir(id: string) {
       @clear-filters="clearFilters"
     />
 
+    <AddSourceDialog
+      v-model="addLog"
+      v-model:busy="addBusy"
+      :visible="addDlg"
+      @add-local="addLocal"
+      @add-git="addGit"
+      @cancel="addDlg = false"
+    />
     <InstallDialog
       :visible="installDlg"
       :plugin="installTarget"
       :engines="engines"
+      :compat="installCompat"
       @confirm="doInstall"
       @cancel="installDlg = false"
     />

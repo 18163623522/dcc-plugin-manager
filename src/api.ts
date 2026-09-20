@@ -57,6 +57,29 @@ export interface UninstallReport {
   entryExhausted: boolean;
 }
 
+/** compat（§3.7 四态） */
+export type CompatStatusDto =
+  | { kind: "installed" }
+  | { kind: "installable"; gitRef: string; confirmed: boolean }
+  | { kind: "unverified" }
+  | { kind: "incompatible"; reason: string };
+
+export interface EngineCompatDto {
+  engine: string;
+  status: CompatStatusDto;
+}
+
+/** 更新检查（§3.5） */
+export type UpdateStateDto =
+  | { kind: "latest" }
+  | { kind: "available"; newVersion: string }
+  | { kind: "failed"; reason: string };
+
+export interface UpdateDto {
+  id: string;
+  state: UpdateStateDto;
+}
+
 export interface FilterState {
   host: "all" | "UE" | "Houdini";
   status: "all" | "installed" | "updatable" | "idle" | "error";

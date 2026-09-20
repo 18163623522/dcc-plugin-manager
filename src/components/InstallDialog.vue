@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import type { PluginRow, UeEngine } from "../api";
+import type { CompatStatusDto, PluginRow, UeEngine } from "../api";
 
 const props = defineProps<{
   visible: boolean;
   plugin: PluginRow | null;
   engines: UeEngine[];
+  /** engine → 兼容状态（git 源才有；本地源为空 map = 全部可手选） */
+  compat: Record<string, CompatStatusDto>;
 }>();
 const emit = defineEmits<{ confirm: [engines: string[]]; cancel: [] }>();
 
@@ -14,15 +16,47 @@ const checked = ref<Set<string>>(new Set());
 watch(
   () => props.visible,
   (v) => {
-    if (v) checked.value = new Set();
+    if (!v) return;
+    // 默认勾选：confirmed 可装的引擎；无 compat 信息（本地源）不预选
+    const pre = new Set<string>();
+    for (const [engine, s] of Object.entries(props.compat)) {
+      if (s.kind === "installable" && s.confirmed) pre.add(engine);
+    }
+    checked.value = pre;
   }
 );
 
-function toggle(v: string) {
+function toggle(v: string, disabled: boolean) {
+  if (disabled) return;
   const next = new Set(checked.value);
   if (next.has(v)) next.delete(v);
   else next.add(v);
   checked.value = next;
+}
+
+function statusOf(engine: string): CompatStatusDto | null {
+  return props.compat[engine] ?? null;
+}
+
+interface Badge {
+  cls: string;
+  text: string;
+  title: string;
+}
+function badgeOf(s: CompatStatusDto | null): Badge | null {
+  if (!s) return null;
+  switch (s.kind) {
+    case "installed":
+      return { cls: "ok", text: "已装", title: "该引擎已有安装记录" };
+    case "installable":
+      return s.confirmed
+        ? { cls: "ok", text: `✓ ${s.gitRef}`, title: "分支 EngineVersion 已确认匹配" }
+        : { cls: "warn", text: s.gitRef, title: "版本匹配未确认（家族分支/弱提示）" };
+    case "unverified":
+      return { cls: "warn", text: "未验证", title: "无版本信号——装完即实测" };
+    case "incompatible":
+      return { cls: "bad", text: "不兼容", title: s.reason };
+  }
 }
 
 function confirm() {
@@ -35,26 +69,36 @@ function confirm() {
     <div v-if="visible && plugin" class="overlay" @click.self="emit('cancel')">
       <div class="dialog">
         <div class="title">安装 {{ plugin.name }}</div>
-        <div class="sub">选择目标引擎（拷贝到 Engine\Plugins\Marketplace）</div>
+        <div class="sub">
+          {{ plugin.source === "github" ? "GitHub 源：Release 附件优先，无附件走源码构建（M3）" : "本地目录拷贝到 Engine\\Plugins\\Marketplace" }}
+        </div>
 
         <div class="engine-list">
           <label
             v-for="e in engines"
             :key="e.version"
             class="engine-item"
-            :class="{ checked: checked.has(e.version) }"
+            :class="{
+              checked: checked.has(e.version),
+              banned: statusOf(e.version)?.kind === 'incompatible',
+            }"
+            :title="badgeOf(statusOf(e.version))?.title ?? ''"
           >
             <input
               type="checkbox"
               :checked="checked.has(e.version)"
-              @change="toggle(e.version)"
+              :disabled="statusOf(e.version)?.kind === 'incompatible'"
+              @change="toggle(e.version, statusOf(e.version)?.kind === 'incompatible')"
             />
             <span class="ver mono">{{ e.version }}</span>
+            <span v-if="badgeOf(statusOf(e.version))" class="badge" :class="badgeOf(statusOf(e.version))!.cls">
+              {{ badgeOf(statusOf(e.version))!.text }}
+            </span>
             <span class="path">{{ e.root }}</span>
           </label>
         </div>
 
-        <div class="hint">兼容矩阵（按分支/EngineVersion 自动勾选）在里程碑 2 提供，请自行确认版本匹配</div>
+        <div class="hint">✓ 绿=分支已确认 · 黄=未验证可试 · 红=仓库声明不兼容</div>
 
         <div class="footer">
           <button class="btn" @click="emit('cancel')">取消</button>
@@ -84,7 +128,7 @@ function confirm() {
 }
 
 .dialog {
-  width: 520px;
+  width: 560px;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
@@ -144,6 +188,10 @@ function confirm() {
   background: rgba(10, 132, 255, 0.1);
   border-color: rgba(10, 132, 255, 0.35);
 }
+.engine-item.banned {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 .engine-item input {
   accent-color: var(--c-primary);
 }
@@ -153,6 +201,34 @@ function confirm() {
   font-weight: 600;
   flex: none;
 }
+
+.badge {
+  flex: none;
+  height: 17px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 7px;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 500;
+  max-width: 150px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.badge.ok {
+  background: rgba(48, 209, 88, 0.13);
+  color: var(--c-ok);
+}
+.badge.warn {
+  background: rgba(255, 214, 10, 0.12);
+  color: var(--c-warn);
+}
+.badge.bad {
+  background: rgba(255, 69, 58, 0.13);
+  color: var(--c-err);
+}
+
 .path {
   font-size: 10.5px;
   color: var(--text-2);
@@ -160,6 +236,8 @@ function confirm() {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  text-align: right;
 }
 
 .hint {

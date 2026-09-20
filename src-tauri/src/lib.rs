@@ -19,6 +19,7 @@ pub fn run() {
             commands::add_git_source,
             commands::list_git_refs,
             commands::check_updates,
+            commands::compat_for,
             commands::install_local,
             commands::plan_uninstall,
             commands::do_uninstall,

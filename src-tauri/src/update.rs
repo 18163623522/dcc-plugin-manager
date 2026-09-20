@@ -18,8 +18,14 @@ use std::path::Path;
 pub enum UpdateState {
     Latest,
     /// { kind, newVersion }（新 tag 或新 commit 短哈希 / "目录内容已变化"）
-    Available { new_version: String },
-    Failed { reason: String },
+    #[serde(rename_all = "camelCase")]
+    Available {
+        new_version: String,
+    },
+    #[serde(rename_all = "camelCase")]
+    Failed {
+        reason: String,
+    },
 }
 
 /// 检查一个条目（按 source 类型分发）。
