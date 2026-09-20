@@ -79,7 +79,7 @@ fn uplugin_stem(src: &Path) -> Option<String> {
 
 /// 遍历目录找被独占锁定的 DLL（ERROR_SHARING_VIOLATION = 32）。
 /// 只探测 dll：编辑器加载的就是模块 DLL；只读属性（ACCESS_DENIED=5）不算锁。
-fn find_locked_file(dir: &Path) -> Option<PathBuf> {
+pub(crate) fn find_locked_file(dir: &Path) -> Option<PathBuf> {
     let entries = match fs::read_dir(dir) {
         Ok(it) => it.flatten().map(|e| e.path()).collect::<Vec<_>>(),
         Err(_) => return None,
