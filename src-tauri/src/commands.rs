@@ -3,7 +3,7 @@
 use crate::detect::houdini::{detect_houdini, HoudiniInstall};
 use crate::detect::ue::{detect_ue_engines, UeEngine};
 use crate::registry::{
-    self, InstalledTarget, PluginEntry, PluginKind, PluginSource, Registry,
+    self, InstallMethod, InstalledTarget, PluginEntry, PluginKind, PluginSource, Registry,
 };
 use crate::sources::git;
 use crate::sources::local::inspect_local;
@@ -182,18 +182,16 @@ pub fn check_updates() -> Vec<UpdateDto> {
         .collect()
 }
 
-// ————————————————— 兼容矩阵（M2）—————————————————
+// ————————————————— 兼容矩阵 + 预检（M2/M3）—————————————————
 
-#[tauri::command]
-pub fn compat_for(app: AppHandle, id: String) -> Result<Vec<crate::compat::EngineCompat>, String> {
-    let reg = load_registry();
-    let Some(entry) = reg.plugins.iter().find(|p| p.id == id) else {
-        return Err(format!("条目不存在：{id}"));
-    };
+/// git 源 → engine → CompatStatus（compat_for 与 preflight_for 共用；本地源空表）。
+fn compat_map(
+    app: &AppHandle,
+    entry: &PluginEntry,
+) -> Result<std::collections::HashMap<String, crate::compat::CompatStatus>, String> {
     let PluginSource::Git { url, .. } = &entry.source else {
-        return Ok(vec![]); // 本地源无矩阵（用户自行确认版本）
+        return Ok(std::collections::HashMap::new());
     };
-
     let dir = data_dir();
     // 确保缓存仓库在（add 时已 clone；被清缓存也能自愈）
     let state = git::ensure_repo(url, &dir, &mut |l| {
@@ -216,10 +214,49 @@ pub fn compat_for(app: AppHandle, id: String) -> Result<Vec<crate::compat::Engin
         refs: &refs,
         engines: &engines,
         installed: &installed,
-    }))
+    })
+    .into_iter()
+    .map(|ec| (ec.engine, ec.status))
+    .collect())
 }
 
-// ————————————————— 安装（本地源拷贝；git 源 Release 优先）—————————————————
+#[tauri::command]
+pub fn compat_for(app: AppHandle, id: String) -> Result<Vec<crate::compat::EngineCompat>, String> {
+    let reg = load_registry();
+    let Some(entry) = reg.plugins.iter().find(|p| p.id == id) else {
+        return Err(format!("条目不存在：{id}"));
+    };
+    let map = compat_map(&app, entry)?;
+    Ok(map.into_iter().map(|(engine, status)| crate::compat::EngineCompat { engine, status }).collect())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EnginePreflight {
+    pub engine: String,
+    pub items: Vec<crate::preflight::PreflightItem>,
+}
+
+/// 每个引擎的五项预检（安装对话框徽标/tooltip 用）。
+#[tauri::command]
+pub fn preflight_for(app: AppHandle, id: String) -> Result<Vec<EnginePreflight>, String> {
+    let reg = load_registry();
+    let Some(entry) = reg.plugins.iter().find(|p| p.id == id) else {
+        return Err(format!("条目不存在：{id}"));
+    };
+    let compat = compat_map(&app, entry)?;
+    let engines = crate::detect::ue::detect_ue_engines(&[]);
+    let data = data_dir();
+    Ok(engines
+        .iter()
+        .map(|e| EnginePreflight {
+            engine: e.version.clone(),
+            items: crate::preflight::check_all(entry, e, compat.get(&e.version), &data),
+        })
+        .collect())
+}
+
+// ————————————————— 安装（本地拷贝 / git：Release 优先 → 源码构建兜底）—————————————————
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -229,8 +266,16 @@ pub struct InstallResultDto {
     pub error: Option<String>,
 }
 
+/// 安装：`refs`/`compat` 来自前端 compat_for 的结果；`token` 用于取消构建。
 #[tauri::command]
-pub fn install_local(app: AppHandle, id: String, engines: Vec<String>) -> Vec<InstallResultDto> {
+pub fn install_local(
+    app: AppHandle,
+    id: String,
+    engines: Vec<String>,
+    refs: Option<std::collections::HashMap<String, String>>,
+    compat: Option<std::collections::HashMap<String, crate::compat::CompatStatus>>,
+    token: String,
+) -> Vec<InstallResultDto> {
     let mut reg = load_registry();
     let Some(entry) = reg.plugins.iter().find(|p| p.id == id).cloned() else {
         return vec![InstallResultDto {
@@ -241,43 +286,106 @@ pub fn install_local(app: AppHandle, id: String, engines: Vec<String>) -> Vec<In
     };
 
     let detected = crate::detect::ue::detect_ue_engines(&[]);
+    let data = data_dir();
     let mut results = Vec::new();
 
-    match entry.source.clone() {
-        PluginSource::Local { path } => {
-            for label in &engines {
-                let result = detected
-                    .iter()
-                    .find(|e| &e.version == label)
-                    .ok_or_else(|| format!("未检测到 UE {label}"))
-                    .and_then(|engine| {
-                        crate::install::copy::install_binary(&path, engine).map(|t| (t, None)).map_err(|e| e.to_string())
-                    });
-                results.push(apply_result(&mut reg, &entry.id, label, result));
-            }
+    for label in &engines {
+        let Some(engine) = detected.iter().find(|e| &e.version == label) else {
+            results.push(InstallResultDto {
+                engine: label.clone(),
+                ok: false,
+                error: Some(format!("未检测到 UE {label}")),
+            });
+            continue;
+        };
+
+        // 预检门禁：阻塞项（不兼容 / 引擎残缺 / 文件锁）直接拒绝该引擎
+        let compat_status = compat.as_ref().and_then(|m| m.get(label));
+        let blockers: Vec<String> = crate::preflight::check_all(&entry, engine, compat_status, &data)
+            .into_iter()
+            .filter(|i| i.blocking && !i.ok)
+            .map(|i| i.message)
+            .collect();
+        if !blockers.is_empty() {
+            results.push(InstallResultDto {
+                engine: label.clone(),
+                ok: false,
+                error: Some(format!("预检未通过：{}", blockers.join("；"))),
+            });
+            continue;
         }
-        PluginSource::Git { url, .. } => {
-            // Release 附件优先；无 Release/无 zip → 报错引导 M3 构建
-            let data = data_dir();
-            for label in &engines {
-                let result = detected
-                    .iter()
-                    .find(|e| &e.version == label)
-                    .ok_or_else(|| format!("未检测到 UE {label}"))
-                    .and_then(|engine| {
-                        crate::install::release::install_release(&url, engine, &data, &mut |l| {
-                            let _ = app.emit("install-log", l);
-                        })
-                        .map(|(t, tag)| (t, Some(tag)))
-                        .map_err(|e| e.to_string())
-                    });
-                results.push(apply_result(&mut reg, &entry.id, label, result));
-            }
-        }
+
+        let result = install_one(&app, &entry, engine, refs.as_ref(), &token, &data);
+        results.push(apply_result(&mut reg, &entry.id, label, result));
     }
 
     let _ = save_registry(&reg);
     results
+}
+
+/// 单引擎安装：Local → 拷贝；Git → Release 优先，NoRelease/NoZipAsset → 源码构建兜底。
+fn install_one(
+    app: &AppHandle,
+    entry: &PluginEntry,
+    engine: &UeEngine,
+    refs: Option<&std::collections::HashMap<String, String>>,
+    token: &str,
+    data_dir: &std::path::Path,
+) -> Result<(InstalledTarget, Option<String>, InstallMethod), String> {
+    let emit = |l: &str| {
+        let _ = app.emit("install-log", l);
+    };
+    match &entry.source {
+        PluginSource::Local { path } => {
+            crate::install::copy::install_binary(path, engine)
+                .map(|t| (t, None, InstallMethod::BinaryCopy))
+                .map_err(|e| e.to_string())
+        }
+        PluginSource::Git { url, default_ref } => {
+            // 1. 确保缓存并 checkout 兼容分支（compat 给的 ref，缺省默认分支）
+            let state =
+                git::ensure_repo(url, data_dir, &mut |l| emit(l)).map_err(|e| e.to_string())?;
+            let git_ref = refs
+                .and_then(|m| m.get(&engine.version))
+                .cloned()
+                .or_else(|| default_ref.clone())
+                .unwrap_or_else(|| state.default_ref.clone());
+            git::checkout(&state.path, &git_ref)
+                .map_err(|e| format!("checkout {git_ref} 失败：{e}"))?;
+            emit(&format!("构建分支：{git_ref}"));
+
+            // 2. Release 附件优先
+            match crate::install::release::install_release(url, engine, data_dir, &mut |l| emit(l)) {
+                Ok((target, tag)) => Ok((target, Some(tag), InstallMethod::Release)),
+                Err(rel_err) => {
+                    let fallback_build = matches!(
+                        rel_err,
+                        crate::install::release::ReleaseError::NoRelease(_) | crate::install::release::ReleaseError::NoZipAsset { .. }
+                    );
+                    if !fallback_build {
+                        return Err(rel_err.to_string());
+                    }
+                    // 3. 无 Release → 源码构建（需 VS 工具链）
+                    if !crate::preflight::vs_toolchain(std::path::Path::new(crate::preflight::VSWHERE)).ok {
+                        return Err(format!(
+                            "无 Release 附件且 VS C++ 工具链不可用——无法源码构建（{rel_err}）"
+                        ));
+                    }
+                    let built = crate::install::build::build_plugin(token, &state.path, engine, data_dir, &mut |l| emit(l))
+                        .map_err(|e| e.to_string())?;
+                    crate::install::copy::install_binary(&built, engine)
+                        .map(|t| (t, None, InstallMethod::Build))
+                        .map_err(|e| e.to_string())
+                }
+            }
+        }
+    }
+}
+
+/// 取消进行中的构建（杀进程树）。
+#[tauri::command]
+pub fn cancel_build(token: String) -> bool {
+    crate::install::build::cancel_build(&token)
 }
 
 /// 单引擎安装结果落 registry（Release 安装附带 tag 版本）并返回 DTO。
@@ -285,10 +393,11 @@ fn apply_result(
     reg: &mut Registry,
     id: &str,
     label: &str,
-    result: Result<(InstalledTarget, Option<String>), String>,
+    result: Result<(InstalledTarget, Option<String>, InstallMethod), String>,
 ) -> InstallResultDto {
     match result {
-        Ok((target, tag)) => {
+        Ok((mut target, tag, method)) => {
+            target.method = method;
             if let Some(e) = reg.plugins.iter_mut().find(|p| p.id == id) {
                 if let Some(tag) = tag.as_deref() {
                     let v = tag.trim_start_matches(['v', 'V']);

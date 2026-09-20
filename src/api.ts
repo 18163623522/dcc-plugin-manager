@@ -80,6 +80,19 @@ export interface UpdateDto {
   state: UpdateStateDto;
 }
 
+/** 预检（§3.8） */
+export interface PreflightItem {
+  key: "compat-source" | "vs-toolchain" | "engine-complete" | "file-lock" | "disk-space";
+  ok: boolean;
+  blocking: boolean;
+  message: string;
+}
+
+export interface EnginePreflight {
+  engine: string;
+  items: PreflightItem[];
+}
+
 export interface FilterState {
   host: "all" | "UE" | "Houdini";
   status: "all" | "installed" | "updatable" | "idle" | "error";

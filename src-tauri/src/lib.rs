@@ -21,7 +21,9 @@ pub fn run() {
             commands::list_git_refs,
             commands::check_updates,
             commands::compat_for,
+            commands::preflight_for,
             commands::install_local,
+            commands::cancel_build,
             commands::plan_uninstall,
             commands::do_uninstall,
         ])

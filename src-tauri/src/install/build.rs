@@ -136,7 +136,13 @@ pub fn build_plugin(
     let mut errors: Vec<String> = Vec::new();
     for line in rx {
         let lower = line.to_ascii_lowercase();
-        if lower.contains("error:") || lower.starts_with("error ") || lower.starts_with("fatal error") {
+        // UBT/clang "error:"、MSVC "file.cpp(98): error C2065"、链接器 "fatal error LNKxxxx"、裸 error 行
+        let is_error = lower.contains("error:")
+            || lower.contains("error c") // MSVC C 编译错误码
+            || lower.contains("error l") // MSVC 链接器错误码 LNK
+            || lower.starts_with("error ")
+            || lower.contains("fatal error");
+        if is_error {
             errors.push(line.clone());
             on_line(&format!("✗ {line}"));
         } else {

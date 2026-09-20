@@ -7,14 +7,17 @@ import PluginList from "../components/PluginList.vue";
 import InstallDialog from "../components/InstallDialog.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import AddSourceDialog from "../components/AddSourceDialog.vue";
+import InstallProgressDialog from "../components/InstallProgressDialog.vue";
 import {
   call,
   inTauri,
   DEFAULT_FILTER,
   type CompatStatusDto,
+  type EnginePreflight,
   type FilterState,
   type InstallResult,
   type PluginRow,
+  type PreflightItem,
   type TargetPath,
   type UeEngine,
   type UninstallReport,
@@ -90,7 +93,7 @@ onMounted(() => {
   loadEngines();
   if (inTauri) {
     listen<string>("install-log", (e) => {
-      addLog.value.push(e.payload);
+      liveLog.value.push(e.payload);
     }).then((u) => (unlistenLog = u));
   }
 });
@@ -120,10 +123,9 @@ function clearFilters() {
 /* ———— 添加源 ———— */
 const addDlg = ref(false);
 const addBusy = ref(false);
-const addLog = ref<string[]>([]);
 
 function openAdd() {
-  addLog.value = [];
+  liveLog.value = [];
   addDlg.value = true;
 }
 
@@ -151,15 +153,21 @@ async function addGit(url: string) {
     showToast(`已添加 ${added.name}（GitHub 源）`, "ok");
   } catch (e) {
     showToast(`添加失败：${e}`, "err");
-    addLog.value.push(`✗ ${e}`);
+    liveLog.value.push(`✗ ${e}`);
   }
   addBusy.value = false;
 }
 
-/* ———— 安装 ———— */
+/* ———— 安装（compat 徽标 + 预检门禁 + 进度日志浮层 + 可取消）———— */
 const installDlg = ref(false);
 const installTarget = ref<PluginRow | null>(null);
 const installCompat = ref<Record<string, CompatStatusDto>>({});
+const installPreflight = ref<Record<string, PreflightItem[]>>({});
+const progressDlg = ref(false);
+const progressDone = ref(false);
+const installToken = ref("");
+/** install-log 事件统一落这里：添加源与安装进度共用，打开时清空 */
+const liveLog = ref<string[]>([]);
 
 async function askInstall(id: string) {
   const p = rows.value.find((r) => r.id === id);
@@ -167,7 +175,8 @@ async function askInstall(id: string) {
   if (p.host === "Houdini") return showToast("Houdini 安装在里程碑 4 提供", "warn");
   installTarget.value = p;
   installCompat.value = {};
-  // git 源拉兼容矩阵（联网，可能几秒）
+  installPreflight.value = {};
+  // git 源拉兼容矩阵 + 五项预检（联网，可能几秒）
   if (inTauri && p.source === "github") {
     try {
       const compat = await call<{ engine: string; status: CompatStatusDto }[]>("compat_for", { id });
@@ -177,6 +186,14 @@ async function askInstall(id: string) {
     } catch (e) {
       showToast(`兼容矩阵查询失败：${e}`, "warn");
     }
+    try {
+      const pf = await call<EnginePreflight[]>("preflight_for", { id });
+      const map: Record<string, PreflightItem[]> = {};
+      for (const e of pf) map[e.engine] = e.items;
+      installPreflight.value = map;
+    } catch {
+      /* 预检失败不拦安装（后端还会再查一次） */
+    }
   }
   installDlg.value = true;
 }
@@ -185,8 +202,25 @@ async function doInstall(selected: string[]) {
   installDlg.value = false;
   const p = installTarget.value;
   if (!p) return;
+  installToken.value = crypto.randomUUID();
+  liveLog.value = [];
+  progressDone.value = false;
+  progressDlg.value = true;
+
+  // compat 给的分支 ref → 传给后端 checkout
+  const refs: Record<string, string> = {};
+  for (const [engine, s] of Object.entries(installCompat.value)) {
+    if (s.kind === "installable" && s.gitRef) refs[engine] = s.gitRef;
+  }
+
   try {
-    const results = await call<InstallResult[]>("install_local", { id: p.id, engines: selected });
+    const results = await call<InstallResult[]>("install_local", {
+      id: p.id,
+      engines: selected,
+      refs: Object.keys(refs).length > 0 ? refs : null,
+      compat: Object.keys(installCompat.value).length > 0 ? installCompat.value : null,
+      token: installToken.value,
+    });
     const ok = results.filter((r) => r.ok);
     const bad = results.filter((r) => !r.ok);
     if (bad.length === 0) {
@@ -200,7 +234,18 @@ async function doInstall(selected: string[]) {
   } catch (e) {
     showToast(`安装失败：${e}`, "err");
   }
+  progressDone.value = true;
   await refresh();
+}
+
+async function cancelInstall() {
+  if (!installToken.value) return;
+  try {
+    const killed = await call<boolean>("cancel_build", { token: installToken.value });
+    if (!killed) liveLog.value.push("（无进行中的构建进程——Release/拷贝阶段无法中断）");
+  } catch (e) {
+    liveLog.value.push(`取消失败：${e}`);
+  }
 }
 
 /* ———— 卸载 ———— */
@@ -272,7 +317,7 @@ async function openDir(id: string) {
     />
 
     <AddSourceDialog
-      v-model="addLog"
+      v-model="liveLog"
       v-model:busy="addBusy"
       :visible="addDlg"
       @add-local="addLocal"
@@ -284,8 +329,18 @@ async function openDir(id: string) {
       :plugin="installTarget"
       :engines="engines"
       :compat="installCompat"
+      :preflight="installPreflight"
       @confirm="doInstall"
       @cancel="installDlg = false"
+    />
+    <InstallProgressDialog
+      :visible="progressDlg"
+      :title="`安装 ${installTarget?.name ?? ''}`"
+      :lines="liveLog"
+      :cancellable="true"
+      :done="progressDone"
+      @cancel="cancelInstall"
+      @close="progressDlg = false"
     />
     <ConfirmDialog
       :visible="uninstallDlg"

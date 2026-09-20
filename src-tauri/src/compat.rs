@@ -12,11 +12,11 @@
 use crate::detect::ue::UeEngine;
 use crate::sources::git::{read_uplugin_at, RefInfo, RefKind};
 use regex::Regex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::LazyLock;
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum CompatStatus {
     Installed,

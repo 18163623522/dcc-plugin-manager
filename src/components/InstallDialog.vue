@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import type { CompatStatusDto, PluginRow, UeEngine } from "../api";
+import type { CompatStatusDto, PluginRow, PreflightItem, UeEngine } from "../api";
 
 const props = defineProps<{
   visible: boolean;
@@ -8,6 +8,8 @@ const props = defineProps<{
   engines: UeEngine[];
   /** engine → 兼容状态（git 源才有；本地源为空 map = 全部可手选） */
   compat: Record<string, CompatStatusDto>;
+  /** engine → 预检结果（M3：文件锁/引擎残缺等阻塞原因） */
+  preflight: Record<string, PreflightItem[]>;
 }>();
 const emit = defineEmits<{ confirm: [engines: string[]]; cancel: [] }>();
 
@@ -25,6 +27,18 @@ watch(
     checked.value = pre;
   }
 );
+
+/** 预检阻塞原因（不兼容/引擎残缺/文件锁），无则 null。 */
+function blockedReason(engine: string): string | null {
+  const items = props.preflight[engine];
+  if (!items) return null;
+  const bad = items.find((i) => i.blocking && !i.ok);
+  return bad?.message ?? null;
+}
+
+function isBlocked(engine: string): boolean {
+  return statusOf(engine)?.kind === "incompatible" || blockedReason(engine) !== null;
+}
 
 function toggle(v: string, disabled: boolean) {
   if (disabled) return;
@@ -53,7 +67,7 @@ function badgeOf(s: CompatStatusDto | null): Badge | null {
         ? { cls: "ok", text: `✓ ${s.gitRef}`, title: "分支 EngineVersion 已确认匹配" }
         : { cls: "warn", text: s.gitRef, title: "版本匹配未确认（家族分支/弱提示）" };
     case "unverified":
-      return { cls: "warn", text: "未验证", title: "无版本信号——装完即实测" };
+      return { cls: "warn", text: "未验证·试编译", title: "无版本信号——安装即试编译，成败为最终裁决" };
     case "incompatible":
       return { cls: "bad", text: "不兼容", title: s.reason };
   }
@@ -70,7 +84,7 @@ function confirm() {
       <div class="dialog">
         <div class="title">安装 {{ plugin.name }}</div>
         <div class="sub">
-          {{ plugin.source === "github" ? "GitHub 源：Release 附件优先，无附件走源码构建（M3）" : "本地目录拷贝到 Engine\\Plugins\\Marketplace" }}
+          {{ plugin.source === "github" ? "GitHub 源：Release 附件优先，无附件走 RunUAT 源码构建" : "本地目录拷贝到 Engine\\Plugins\\Marketplace" }}
         </div>
 
         <div class="engine-list">
@@ -80,15 +94,15 @@ function confirm() {
             class="engine-item"
             :class="{
               checked: checked.has(e.version),
-              banned: statusOf(e.version)?.kind === 'incompatible',
+              banned: isBlocked(e.version),
             }"
-            :title="badgeOf(statusOf(e.version))?.title ?? ''"
+            :title="blockedReason(e.version) ?? badgeOf(statusOf(e.version))?.title ?? ''"
           >
             <input
               type="checkbox"
               :checked="checked.has(e.version)"
-              :disabled="statusOf(e.version)?.kind === 'incompatible'"
-              @change="toggle(e.version, statusOf(e.version)?.kind === 'incompatible')"
+              :disabled="isBlocked(e.version)"
+              @change="toggle(e.version, isBlocked(e.version))"
             />
             <span class="ver mono">{{ e.version }}</span>
             <span v-if="badgeOf(statusOf(e.version))" class="badge" :class="badgeOf(statusOf(e.version))!.cls">
@@ -98,7 +112,7 @@ function confirm() {
           </label>
         </div>
 
-        <div class="hint">✓ 绿=分支已确认 · 黄=未验证可试 · 红=仓库声明不兼容</div>
+        <div class="hint">✓ 绿=分支已确认 · 黄=未验证可试编译 · 红=不兼容或预检未过（悬停看原因）</div>
 
         <div class="footer">
           <button class="btn" @click="emit('cancel')">取消</button>

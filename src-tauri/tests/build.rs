@@ -44,6 +44,7 @@ const OK_BAT: &[&str] = &[
 const FAIL_BAT: &[&str] = &[
     "@echo off",
     "echo [FakeUAT] something happened",
+    "echo C:/fake/src/Module.cpp(98): error C2065: \"GEngine\": undeclared identifier",
     "echo Fatal error: fake build failure >&2",
     "exit /b 3",
 ];
@@ -101,10 +102,46 @@ fn failure_collects_error_lines() {
     let err = build_plugin("t-fail", &src, &engine_with(&bat), &root, &mut |_| {}).unwrap_err();
     match err {
         BuildError::RunUatFailed { errors } => {
+            // UBT 风格（error:）与 MSVC 风格（error C2065）都要收进来
             assert!(errors.iter().any(|e| e.contains("fake build failure")), "{errors:?}");
+            assert!(errors.iter().any(|e| e.contains("error C2065")), "{errors:?}");
         }
         other => panic!("期望 RunUatFailed，得到 {other:?}"),
     }
+}
+
+/// M3 验收：TrueGlow 源码对真机 UE 4.26 全量 RunUAT 构建（1-15 分钟）。
+#[test]
+#[ignore = "真机全量构建 1-15 分钟"]
+fn live_runuat_trueglow_build() {
+    use dcc_plugin_manager_lib::detect::ue::detect_ue_engines;
+    use dcc_plugin_manager_lib::sources::git::ensure_repo;
+
+    let data = std::env::temp_dir().join(format!("dpm-live-build-{}", std::process::id()));
+    let state = ensure_repo("https://github.com/18163623522/TrueGlow", &data, &mut |l| {
+        eprintln!("{l}");
+    })
+    .unwrap();
+
+    let engines = detect_ue_engines(&[]);
+    let e426 = engines
+        .iter()
+        .find(|e| e.version.starts_with("4.26"))
+        .expect("本机应有 UE 4.26.2");
+
+    let out = build_plugin("live-trueglow", &state.path, e426, &data, &mut |l| {
+        println!("{l}");
+    })
+    .expect("真实构建失败");
+    println!("产物：{}", out.display());
+    assert!(out.join("Binaries").join("Win64").is_dir(), "产物应含 Binaries/Win64");
+    let dlls: Vec<_> = std::fs::read_dir(out.join("Binaries").join("Win64"))
+        .unwrap()
+        .flatten()
+        .filter(|e| e.path().extension().is_some_and(|x| x.eq_ignore_ascii_case("dll")))
+        .collect();
+    assert!(!dlls.is_empty(), "产物 Win64 应有 dll");
+    let _ = std::fs::remove_dir_all(&data);
 }
 
 #[test]

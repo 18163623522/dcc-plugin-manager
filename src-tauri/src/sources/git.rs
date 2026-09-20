@@ -146,6 +146,12 @@ pub fn ensure_repo(url: &str, cache_dir: &Path, on_line: &mut dyn FnMut(&str)) -
     repo_state(&path)
 }
 
+/// 切换工作区到指定分支/标签（构建前选 ref 用）。
+pub fn checkout(path: &Path, git_ref: &str) -> Result<(), GitError> {
+    ok_or(git(&["checkout", "-q", git_ref], Some(path))?, "checkout")?;
+    Ok(())
+}
+
 /// 读仓库当前状态（HEAD + 默认分支）。
 pub fn repo_state(path: &Path) -> Result<RepoState, GitError> {
     let head_full = ok_or(git(&["rev-parse", "HEAD"], Some(path))?, "rev-parse")?;
