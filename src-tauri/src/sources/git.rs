@@ -82,6 +82,29 @@ pub fn repo_cache_path(data_dir: &Path, url: &str) -> Result<PathBuf, GitError> 
     Ok(data_dir.join("cache").join("repos").join(name))
 }
 
+/// 仓库名弱提示之外：完整 owner/repo（Release API 路径用）。
+/// `https://github.com/18163623522/TrueGlow.git` → `18163623522/TrueGlow`。
+pub fn repo_full_name(url: &str) -> Option<String> {
+    let trimmed = url.trim().trim_end_matches('/');
+    let path = if let Some((_, rest)) = trimmed.split_once("://") {
+        let (_, p) = rest.split_once('/')?;
+        p
+    } else if let Some((_, after)) = trimmed.split_once(':') {
+        after
+    } else {
+        trimmed
+    };
+    let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+    if parts.len() < 2 {
+        return None;
+    }
+    let repo = parts[parts.len() - 1].strip_suffix(".git").unwrap_or(parts[parts.len() - 1]);
+    if repo.is_empty() {
+        return None;
+    }
+    Some(format!("{}/{}", parts[parts.len() - 2], repo))
+}
+
 fn git(args: &[&str], cwd: Option<&Path>) -> Result<Output, GitError> {
     let mut cmd = Command::new("git");
     cmd.args(args);
@@ -208,6 +231,23 @@ mod tests {
         assert_eq!(repo_name("git@github.com:18163623522/houdini-graph-tools.git").as_deref(), Some("houdini-graph-tools"));
         assert!(repo_name("https://github.com/").is_none());
         assert!(repo_name("").is_none());
+    }
+
+    #[test]
+    fn repo_full_name_variants() {
+        assert_eq!(
+            repo_full_name("https://github.com/18163623522/TrueGlow").as_deref(),
+            Some("18163623522/TrueGlow")
+        );
+        assert_eq!(
+            repo_full_name("https://github.com/18163623522/houdini-graph-tools.git").as_deref(),
+            Some("18163623522/houdini-graph-tools")
+        );
+        assert_eq!(
+            repo_full_name("git@github.com:18163623522/BetterHLSL.git").as_deref(),
+            Some("18163623522/BetterHLSL")
+        );
+        assert!(repo_full_name("https://github.com/18163623522").is_none());
     }
 
     #[test]
