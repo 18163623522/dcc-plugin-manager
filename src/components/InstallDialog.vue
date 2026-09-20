@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import type { CompatStatusDto, PluginRow, PreflightItem, UeEngine } from "../api";
+import type { CompatStatusDto, EngineRow, PluginRow, PreflightItem } from "../api";
 
 const props = defineProps<{
   visible: boolean;
   plugin: PluginRow | null;
-  engines: UeEngine[];
+  engines: EngineRow[];
   /** engine → 兼容状态（git 源才有；本地源为空 map = 全部可手选） */
   compat: Record<string, CompatStatusDto>;
   /** engine → 预检结果（M3：文件锁/引擎残缺等阻塞原因） */
@@ -84,7 +84,13 @@ function confirm() {
       <div class="dialog">
         <div class="title">安装 {{ plugin.name }}</div>
         <div class="sub">
-          {{ plugin.source === "github" ? "GitHub 源：Release 附件优先，无附件走 RunUAT 源码构建" : "本地目录拷贝到 Engine\\Plugins\\Marketplace" }}
+          {{
+            plugin.host === "Houdini"
+              ? "拷贝到偏好目录 plugins\\ + 生成 packages json（Houdini 重启后生效）"
+              : plugin.source === "github"
+                ? "GitHub 源：Release 附件优先，无附件走 RunUAT 源码构建"
+                : "本地目录拷贝到 Engine\\Plugins\\Marketplace"
+          }}
         </div>
 
         <div class="engine-list">

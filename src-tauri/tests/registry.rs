@@ -33,6 +33,7 @@ fn sample() -> Registry {
         installed: vec![InstalledTarget {
             engine: "UE-5.8.1".into(),
             path: PathBuf::from(r"E:\UE\UE_5.8\Engine\Plugins\Marketplace\TrueGlow"),
+            sidecar: None,
             method: InstallMethod::BinaryCopy,
             installed_at: "2026-09-20T11:00:00+08:00".into(),
         }],

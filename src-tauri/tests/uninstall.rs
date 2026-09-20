@@ -103,6 +103,7 @@ fn missing_path_reported_not_crash() {
         vec![InstalledTarget {
             engine: "UE-5.7.4".into(),
             path: PathBuf::from(r"Z:\ghost\Marketplace\Ghost"),
+            sidecar: None,
             method: InstallMethod::BinaryCopy,
             installed_at: "2026-09-20T00:00:00+08:00".into(),
         }],
@@ -122,12 +123,14 @@ fn engine_filter_uninstalls_only_selected() {
             InstalledTarget {
                 engine: "UE-5.7.4".into(),
                 path: PathBuf::from(r"Z:\e57\Dual"),
+                sidecar: None,
                 method: InstallMethod::BinaryCopy,
                 installed_at: "t".into(),
             },
             InstalledTarget {
                 engine: "UE-5.8.1".into(),
                 path: PathBuf::from(r"Z:\e58\Dual"),
+                sidecar: None,
                 method: InstallMethod::BinaryCopy,
                 installed_at: "t".into(),
             },

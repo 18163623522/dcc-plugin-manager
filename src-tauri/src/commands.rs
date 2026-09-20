@@ -291,37 +291,58 @@ pub fn install_local(
         }];
     };
 
-    let detected = crate::detect::ue::detect_ue_engines(&[]);
+    let ue_list = crate::detect::ue::detect_ue_engines(&[]);
+    let hou_list = crate::detect::houdini::detect_houdini();
     let data = data_dir();
     let mut results = Vec::new();
 
     for label in &engines {
-        let Some(engine) = detected.iter().find(|e| &e.version == label) else {
-            results.push(InstallResultDto {
-                engine: label.clone(),
-                ok: false,
-                error: Some(format!("未检测到 UE {label}")),
-            });
-            continue;
+        // 按插件类型解析目标（UE 引擎或 Houdini 安装）
+        let pick = if entry.kind == PluginKind::Houdini {
+            hou_list
+                .iter()
+                .find(|h| &h.version == label)
+                .map(EnginePick::Hou)
+                .ok_or_else(|| format!("未检测到 Houdini {label}"))
+        } else {
+            ue_list
+                .iter()
+                .find(|e| &e.version == label)
+                .map(EnginePick::Ue)
+                .ok_or_else(|| format!("未检测到 UE {label}"))
+        };
+        let pick = match pick {
+            Ok(v) => v,
+            Err(err) => {
+                results.push(InstallResultDto {
+                    engine: label.clone(),
+                    ok: false,
+                    error: Some(err),
+                });
+                continue;
+            }
         };
 
-        // 预检门禁：阻塞项（不兼容 / 引擎残缺 / 文件锁）直接拒绝该引擎
-        let compat_status = compat.as_ref().and_then(|m| m.get(label));
-        let blockers: Vec<String> = crate::preflight::check_all(&entry, engine, compat_status, &data)
-            .into_iter()
-            .filter(|i| i.blocking && !i.ok)
-            .map(|i| i.message)
-            .collect();
-        if !blockers.is_empty() {
-            results.push(InstallResultDto {
-                engine: label.clone(),
-                ok: false,
-                error: Some(format!("预检未通过：{}", blockers.join("；"))),
-            });
-            continue;
+        // 预检门禁（仅 UE）：阻塞项（不兼容 / 引擎残缺 / 文件锁）直接拒绝该引擎
+        if let EnginePick::Ue(engine) = &pick {
+            let compat_status = compat.as_ref().and_then(|m| m.get(label));
+            let blockers: Vec<String> =
+                crate::preflight::check_all(&entry, engine, compat_status, &data)
+                    .into_iter()
+                    .filter(|i| i.blocking && !i.ok)
+                    .map(|i| i.message)
+                    .collect();
+            if !blockers.is_empty() {
+                results.push(InstallResultDto {
+                    engine: label.clone(),
+                    ok: false,
+                    error: Some(format!("预检未通过：{}", blockers.join("；"))),
+                });
+                continue;
+            }
         }
 
-        let result = install_one(&app, &entry, engine, refs.as_ref(), &token, &data);
+        let result = install_one(&app, &entry, &pick, refs.as_ref(), &token, &data);
         results.push(apply_result(&mut reg, &entry.id, label, result));
     }
 
@@ -329,11 +350,17 @@ pub fn install_local(
     results
 }
 
-/// 单引擎安装：Local → 拷贝；Git → Release 优先，NoRelease/NoZipAsset → 源码构建兜底。
+/// 安装目标：UE 引擎或 Houdini 安装。
+enum EnginePick<'a> {
+    Ue(&'a UeEngine),
+    Hou(&'a crate::detect::houdini::HoudiniInstall),
+}
+
+/// 单目标安装：Houdini → packages 落位；UE：Local → 拷贝，Git → Release 优先、构建兜底。
 fn install_one(
     app: &AppHandle,
     entry: &PluginEntry,
-    engine: &UeEngine,
+    pick: &EnginePick<'_>,
     refs: Option<&std::collections::HashMap<String, String>>,
     token: &str,
     data_dir: &std::path::Path,
@@ -341,6 +368,32 @@ fn install_one(
     let emit = |l: &str| {
         let _ = app.emit("install-log", l);
     };
+
+    // Houdini：本地目录 / git 缓存仓库 → plugins 落位 + packages json
+    if let EnginePick::Hou(hou) = pick {
+        let src = match &entry.source {
+            PluginSource::Local { path } => path.clone(),
+            PluginSource::Git { url, .. } => {
+                let state =
+                    git::ensure_repo(url, data_dir, &mut |l| emit(l)).map_err(|e| e.to_string())?;
+                state.path
+            }
+        };
+        emit(&format!(
+            "Houdini {} 安装：{} → plugins/{}",
+            hou.version,
+            src.display(),
+            entry.id
+        ));
+        return crate::install::houdini::install_houdini(&src, &entry.id, hou)
+            .map(|t| (t, None, InstallMethod::BinaryCopy))
+            .map_err(|e| e.to_string());
+    }
+
+    let EnginePick::Ue(engine) = pick else {
+        unreachable!("Houdini 分支已提前返回");
+    };
+
     match &entry.source {
         PluginSource::Local { path } => {
             crate::install::copy::install_binary(path, engine)

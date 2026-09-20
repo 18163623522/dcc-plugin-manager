@@ -86,7 +86,15 @@ pub fn uninstall(
             continue;
         }
         match std::fs::remove_dir_all(&t.path) {
-            Ok(()) => report.removed.push(target),
+            Ok(()) => {
+                // 附带产物（Houdini packages json）连带删除
+                if let Some(sidecar) = &t.sidecar {
+                    if sidecar.is_file() {
+                        let _ = std::fs::remove_file(sidecar);
+                    }
+                }
+                report.removed.push(target);
+            }
             Err(e) => {
                 report.failed.push(FailedTarget {
                     engine: t.engine.clone(),

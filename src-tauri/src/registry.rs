@@ -68,6 +68,9 @@ pub struct InstalledTarget {
     pub engine: String,
     /// 安装落位路径（卸载只删这里记录的精确路径）
     pub path: PathBuf,
+    /// 附带产物（Houdini packages json 等），卸载时连带删除
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sidecar: Option<PathBuf>,
     #[serde(default)]
     pub method: InstallMethod,
     /// RFC3339 本地时区
@@ -182,6 +185,7 @@ mod tests {
                 installed: vec![InstalledTarget {
                     engine: "UE-5.8.1".into(),
                     path: PathBuf::from(r"E:\UE\UE_5.8\Engine\Plugins\Marketplace\TrueGlow"),
+                    sidecar: None,
                     method: InstallMethod::BinaryCopy,
                     installed_at: "2026-09-20T11:00:00+08:00".into(),
                 }],

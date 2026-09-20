@@ -25,6 +25,12 @@ export interface EnginesDto {
   houdini: HoudiniInstall[];
 }
 
+/** 安装对话框通用引擎行（UE 引擎 / Houdini 安装统一形状） */
+export interface EngineRow {
+  version: string;
+  root: string;
+}
+
 export interface PluginRow {
   id: string;
   name: string;

@@ -59,6 +59,7 @@ pub fn install_binary(src: &Path, engine: &UeEngine) -> Result<InstalledTarget, 
     Ok(InstalledTarget {
         engine: ue_engine_label(&engine.version),
         path: dest,
+        sidecar: None,
         method: InstallMethod::BinaryCopy,
         installed_at: now_rfc3339(),
     })
@@ -100,8 +101,8 @@ pub(crate) fn find_locked_file(dir: &Path) -> Option<PathBuf> {
     None
 }
 
-/// 递归拷贝目录，返回拷贝的文件数。
-fn copy_dir_recursive(src: &Path, dest: &Path) -> io::Result<u64> {
+/// 递归拷贝目录，返回拷贝的文件数（Houdini 安装也复用）。
+pub(crate) fn copy_dir_recursive(src: &Path, dest: &Path) -> io::Result<u64> {
     fs::create_dir_all(dest)?;
     let mut count = 0u64;
     for entry in fs::read_dir(src)? {
