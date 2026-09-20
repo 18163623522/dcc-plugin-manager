@@ -366,7 +366,7 @@ fn install_one(
                         return Err(rel_err.to_string());
                     }
                     // 3. 无 Release → 源码构建（需 VS 工具链）
-                    if !crate::preflight::vs_toolchain(std::path::Path::new(crate::preflight::VSWHERE)).ok {
+                    if !crate::preflight::vs_toolchain().ok {
                         return Err(format!(
                             "无 Release 附件且 VS C++ 工具链不可用——无法源码构建（{rel_err}）"
                         ));

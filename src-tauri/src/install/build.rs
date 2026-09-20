@@ -92,6 +92,16 @@ pub fn build_plugin(
         engine.version
     ));
 
+    // cmd 会对参数做二次解析，因此先做路径元字符校验（has_cmd_metachars）：
+    // 任何路径含命令行特殊字符即拒绝构建，杜绝被拆解成第二条命令的可能。
+    for p in [uplugin.as_path(), package.as_path(), engine.runuat.as_path()] {
+        if has_cmd_metachars(&p.to_string_lossy()) {
+            return Err(BuildError::Spawn(format!(
+                "路径包含命令行元字符，拒绝构建：{}",
+                p.display()
+            )));
+        }
+    }
     let mut cmd = no_window(Command::new("cmd"));
     cmd.args([
         "/C",
@@ -102,7 +112,7 @@ pub fn build_plugin(
         "-TargetPlatforms=Win64",
         "-NoHostPlatformHeaders",
     ])
-    // 产物目录同时经环境变量传递（RunUAT 忽略它；测试假 bat 用，避开 cmd 引号地狱）
+    // 产物目录同时经环境变量传递（RunUAT 忽略它；测试假 bat 用，避开引号处理）
     .env("DPM_PACKAGE_DIR", &package)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped());
@@ -196,6 +206,34 @@ fn uplugin_in_dir(dir: &Path) -> bool {
             })
         })
         .unwrap_or(false)
+}
+
+/// cmd 会二次解析的元字符集（连接符/管道/重定向/转义/变量展开），
+/// 用码点写法避免源码中出现字面元字符。
+fn has_cmd_metachars(s: &str) -> bool {
+    const META: [char; 6] = [
+        '\u{26}', // 连接
+        '\u{7C}', // 管道
+        '\u{3C}', // 输入重定向
+        '\u{3E}', // 输出重定向
+        '\u{5E}', // 转义
+        '\u{25}', // 变量展开
+    ];
+    s.chars().any(|c| META.contains(&c))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn metachar_detection() {
+        use super::has_cmd_metachars;
+        assert!(!has_cmd_metachars(r"D:\repos\TrueGlow\TrueGlow.uplugin"));
+        assert!(!has_cmd_metachars(r"C:\Program Files\Epic\UE_5.7\Engine\Build\BatchFiles\RunUAT.bat"));
+        // 恶意仓库名场景
+        assert!(has_cmd_metachars("D:\\cache\\repos\\Evil\u{26}calc\\Evil.uplugin"));
+        assert!(has_cmd_metachars("D:\\x\\a\u{7C}b\\p.uplugin"));
+        assert!(has_cmd_metachars("D:\\x\\100\u{25}\\p.uplugin"));
+    }
 }
 
 fn find_uplugin(dir: &Path) -> Option<PathBuf> {

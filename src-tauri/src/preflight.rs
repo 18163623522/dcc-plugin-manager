@@ -42,7 +42,7 @@ pub fn check_all(
 ) -> Vec<PreflightItem> {
     vec![
         compat_source(compat),
-        vs_toolchain(Path::new(VSWHERE)),
+        vs_toolchain(),
         engine_complete(engine),
         file_lock(entry, engine),
         disk_space(entry, engine, cache_dir),
@@ -68,8 +68,17 @@ fn compat_source(compat: Option<&CompatStatus>) -> PreflightItem {
 }
 
 // 2. VS C++ 工具链（源码构建可用性；Release 包不受影响——非阻塞降级提示）
-pub fn vs_toolchain(vswhere: &Path) -> PreflightItem {
-    match vswhere_status(vswhere) {
+// 安全约束：可执行文件只允许编译期字面量路径，不接受任何调用方传入值。
+pub fn vs_toolchain() -> PreflightItem {
+    if !Path::new(VSWHERE).is_file() {
+        return PreflightItem {
+            key: PreflightKey::VsToolchain,
+            ok: false,
+            blocking: false,
+            message: "未找到 vswhere——无法确认 VS 工具链，源码构建可用性未知".into(),
+        };
+    }
+    match vswhere_status() {
         Some(true) => PreflightItem {
             key: PreflightKey::VsToolchain,
             ok: true,
@@ -86,27 +95,26 @@ pub fn vs_toolchain(vswhere: &Path) -> PreflightItem {
             key: PreflightKey::VsToolchain,
             ok: false,
             blocking: false,
-            message: "未找到 vswhere——无法确认 VS 工具链，源码构建可用性未知".into(),
+            message: "vswhere 查询失败——无法确认 VS 工具链".into(),
         },
     }
 }
 
-/// Some(ok)：vswhere 存在并给出结论；None：vswhere 本身缺失。
-fn vswhere_status(vswhere: &Path) -> Option<bool> {
-    if !vswhere.is_file() {
-        return None;
-    }
-    let out = no_window(Command::new(vswhere))
-        .args([
-            "-products",
-            "*",
-            "-requires",
-            "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
-            "-property",
-            "installationName",
-        ])
-        .output()
-        .ok()?;
+/// 运行 vswhere（编译期字面量路径 + 参数列表，无 shell、无调用方输入）。
+fn vswhere_status() -> Option<bool> {
+    let out = no_window(Command::new(
+        r"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe",
+    ))
+    .args([
+        "-products",
+        "*",
+        "-requires",
+        "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+        "-property",
+        "installationName",
+    ])
+    .output()
+    .ok()?;
     Some(out.status.success() && !String::from_utf8_lossy(&out.stdout).trim().is_empty())
 }
 
@@ -347,10 +355,11 @@ mod tests {
     }
 
     #[test]
-    fn vswhere_missing_is_unknown_not_false() {
-        let item = vs_toolchain(Path::new(r"Z:\no\vswhere.exe"));
-        assert!(!item.ok && !item.blocking);
-        assert!(item.message.contains("未找到 vswhere"));
+    fn vs_toolchain_item_is_non_blocking() {
+        // 无论本机有无 vswhere/工具链，该项都不阻塞安装（Release 路径可用性提示）
+        let item = vs_toolchain();
+        assert!(!item.blocking);
+        assert!(!item.message.is_empty());
     }
 
     /// 真机：C 盘可用空间应可读且巨大。
