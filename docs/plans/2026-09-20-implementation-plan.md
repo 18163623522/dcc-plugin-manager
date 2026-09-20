@@ -183,6 +183,35 @@ pub struct InstalledTarget {
 - Modify: `uninstall.rs`/`update.rs` 覆盖 Houdini 分支（删插件目录+json；更新 = 重装）。
 - 验收：装→卸→装的往返与 registry 状态一致。
 
+## 里程碑 5：Obsidian 插件管理（2026-09-20 追加）
+
+设计依据：`docs/specs/...design.md` §8.1（vault=引擎映射表）。复用 sources/registry/update/uninstall 骨架，新增 detect 与 install 的 Obsidian 分支。
+
+### Task 5.1 detect::obsidian —— vault 枚举
+- Create: `src-tauri/src/detect/obsidian.rs`；Test: fixtures obsidian.json 快照
+- 接口：`detect_vaults() -> Vec<ObsidianVault>`：解析 `%APPDATA%\obsidian\obsidian.json` 的
+  `vaults`（id→path，含 `open` 标记当前库）+ 路径存在性校验；应用版本读取供 minAppVersion 兼容。
+- registry 语义：`InstalledTarget.engine = "Obsidian@<vault名>"`。
+
+### Task 5.2 sources 识别 manifest.json + install::obsidian Release 散件
+- Modify: `sources/local.rs`（识别 manifest.json → Obsidian 插件：id/version/minAppVersion）
+- Create: `src-tauri/src/install/obsidian.rs`
+  - Release 散件收集：main.js + manifest.json（必需）+ styles.css（可选）三个独立附件 → 下载到缓存
+    （install::release 扩展非 zip 资产路径）；zip 附件走既有解压探测
+  - 落位：`<vault>\.obsidian\plugins\<id>\`（已存在 → 整目录替换；Obsidian 运行中文件被锁 → Lock 报错提示）
+  - 完成提示"在 Obsidian 设置 → 第三方插件中启用"（不写 community-plugins.json，避免竞态）
+- 验收：对带标准 Release 散件的公开插件仓库走通装→列表→卸载。
+
+### Task 5.3 源码构建兜底 + compat（minAppVersion）
+- Create: `install/obsidian.rs` 构建路径：`pnpm install && pnpm run build`（shell，CREATE_NO_WINDOW，
+  日志流 install-log）→ 产物取 main.js/manifest.json/styles.css
+- compat：manifest `minAppVersion` vs 应用版本 → ✅/❌（isDesktopOnly 仅提示）
+- 验收：本机 obsidian-canvas-plus 等私有仓库（gh 已登录可 clone）走源码构建安装成功。
+
+### Task 5.4 前端
+- 引擎页 vault 分组；安装对话框 vault 多选 + minAppVersion 徽标；宿主筛选 chip 加 Obsidian。
+- 验收：真机 vault 列表 + 双 vault 安装。
+
 ---
 
 ## 验证策略（贯穿）
