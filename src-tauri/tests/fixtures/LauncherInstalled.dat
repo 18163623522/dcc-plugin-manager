@@ -1,0 +1,228 @@
+{
+	"InstallationList": [
+		{
+			"InstallLocation": "D:\\SoftWave\\UnrealEngine\\UE_5.6",
+			"NamespaceId": "ue",
+			"ItemId": "1ce536b653df463bb2492f529d832b71",
+			"ArtifactId": "QuixelBridge_5.6",
+			"AppVersion": "5.6.0-43139311+++UE5+Release-5.6-2025.0.1-43139311-Windows",
+			"AppName": "QuixelBridge_5.6"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UE\\UE_5.4",
+			"NamespaceId": "ue",
+			"ItemId": "1ce536b653df463bb2492f529d832b71",
+			"ArtifactId": "QuixelBridge_5.4",
+			"AppVersion": "5.4.0-33043543+++UE5+Release-5.4-2024.0.7-38493693-Windows",
+			"AppName": "QuixelBridge_5.4"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UE\\UE_5.4",
+			"NamespaceId": "ue",
+			"ItemId": "c5c30696e4e0482f9c0a170873975230",
+			"ArtifactId": "FabPlugin_5.4",
+			"AppVersion": "5.4.0-33043543+++UE5+Release-5.4-0.0.6-49963561-Windows",
+			"AppName": "FabPlugin_5.4"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UnrealEngine\\UE4.26\\UE_4.26",
+			"NamespaceId": "89efe5924d3d467c839449ab6ab52e7f",
+			"ItemId": "9164278fa3e945fcbc9b542bc0ef2d03",
+			"ArtifactId": "AutoSizeComments_4.26",
+			"AppVersion": "4.26.0-21247786+++UE5+Dev-Marketplace-Windows",
+			"AppName": "AutoSizeComments_4.26"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UE\\UE_5.4",
+			"NamespaceId": "ue",
+			"ItemId": "5e7c497460f64ae19e6c3aaef8b421cc",
+			"ArtifactId": "UE_5.4",
+			"AppVersion": "5.4.4-35576357+++UE5+Release-5.4-Windows",
+			"AppName": "UE_5.4"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UnrealEngine\\UE4.26\\UE_4.26",
+			"NamespaceId": "ue",
+			"ItemId": "3ddb1bad6e004b99a7192c1a29f2318a",
+			"ArtifactId": "UE_4.26",
+			"AppVersion": "4.26.2-15973114+++UE4+Release-4.26-2023.1-Windows",
+			"AppName": "UE_4.26"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UnrealEngine\\UE_5.6",
+			"NamespaceId": "89efe5924d3d467c839449ab6ab52e7f",
+			"ItemId": "18de3b6c5509403b912d4e98eca93112",
+			"ArtifactId": "GraphPri2020c2d945d5V11",
+			"AppVersion": "5.6.0-51047520+++UE5+Dev-Marketplace-Windows",
+			"AppName": "GraphPri2020c2d945d5V11"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UnrealEngine\\UE_5.6",
+			"NamespaceId": "89efe5924d3d467c839449ab6ab52e7f",
+			"ItemId": "64e0a1f3ec364f5b9608eb3842cad4ed",
+			"ArtifactId": "CrystalN80b8cacc048eV5",
+			"AppVersion": "5.6.0-49882836+++UE5+Dev-Marketplace-Windows",
+			"AppName": "CrystalN80b8cacc048eV5"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UE\\UE_5.7",
+			"NamespaceId": "ue",
+			"ItemId": "c5c30696e4e0482f9c0a170873975230",
+			"ArtifactId": "FabPlugin_5.7",
+			"AppVersion": "5.7.0-47537391+++UE5+Release-5.7-0.0.10-53078256-Windows",
+			"AppName": "FabPlugin_5.7"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UnrealEngine\\UE_5.6",
+			"NamespaceId": "ue",
+			"ItemId": "73923380f4d944d5bcb6d77a0640d26d",
+			"ArtifactId": "UE_5.6",
+			"AppVersion": "5.6.1-44394996+++UE5+Release-5.6-Windows",
+			"AppName": "UE_5.6"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UE\\UE_5.7",
+			"NamespaceId": "ue",
+			"ItemId": "1ce536b653df463bb2492f529d832b71",
+			"ArtifactId": "QuixelBridge_5.7",
+			"AppVersion": "5.7.0-47537391+++UE5+Release-5.7-2025.0.1-47537391-Windows",
+			"AppName": "QuixelBridge_5.7"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UnrealEngine\\UE_5.6",
+			"NamespaceId": "ue",
+			"ItemId": "c5c30696e4e0482f9c0a170873975230",
+			"ArtifactId": "FabPlugin_5.6",
+			"AppVersion": "5.6.0-43139311+++UE5+Release-5.6-0.0.9-53082900-Windows",
+			"AppName": "FabPlugin_5.6"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UE\\UE_5.3",
+			"NamespaceId": "ue",
+			"ItemId": "1ce536b653df463bb2492f529d832b71",
+			"ArtifactId": "QuixelBridge_5.3",
+			"AppVersion": "5.3.0-27405482+++UE5+Release-5.3-2023.1.1-38491899-Windows",
+			"AppName": "QuixelBridge_5.3"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UE\\UE_5.3",
+			"NamespaceId": "ue",
+			"ItemId": "aa3bb95475084190ac97c8cab3c79ab1",
+			"ArtifactId": "UE_5.3",
+			"AppVersion": "5.3.2-29314046+++UE5+Release-5.3-Windows",
+			"AppName": "UE_5.3"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UnrealEngine\\UE_5.6",
+			"NamespaceId": "89efe5924d3d467c839449ab6ab52e7f",
+			"ItemId": "62d9a56b755b410c8aae723cb724bddd",
+			"ArtifactId": "Language4b9b25e58edcV9",
+			"AppVersion": "5.6.0-49536901+++UE5+Dev-Marketplace-Windows",
+			"AppName": "Language4b9b25e58edcV9"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UnrealEngine\\UE_5.6",
+			"NamespaceId": "89efe5924d3d467c839449ab6ab52e7f",
+			"ItemId": "01d3f4bb9fec46b8af130e6461225834",
+			"ArtifactId": "Blueprinae57f77560f3V7",
+			"AppVersion": "5.6.0-49850369+++UE5+Dev-Marketplace-Windows",
+			"AppName": "Blueprinae57f77560f3V7"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UE\\UE_5.7",
+			"NamespaceId": "89efe5924d3d467c839449ab6ab52e7f",
+			"ItemId": "9164278fa3e945fcbc9b542bc0ef2d03",
+			"ArtifactId": "AutoSize109b491ea28aV18",
+			"AppVersion": "5.7.0-52095587+++UE5+Dev-Marketplace-Windows",
+			"AppName": "AutoSize109b491ea28aV18"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UE\\UE_5.7",
+			"NamespaceId": "89efe5924d3d467c839449ab6ab52e7f",
+			"ItemId": "01d3f4bb9fec46b8af130e6461225834",
+			"ArtifactId": "Blueprind4cfafad55b0V8",
+			"AppVersion": "5.7.0-49850398+++UE5+Dev-Marketplace-Windows",
+			"AppName": "Blueprind4cfafad55b0V8"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UE\\UE_5.7",
+			"NamespaceId": "89efe5924d3d467c839449ab6ab52e7f",
+			"ItemId": "64e0a1f3ec364f5b9608eb3842cad4ed",
+			"ArtifactId": "CrystalN603eb732ee73V6",
+			"AppVersion": "5.7.0-49882843+++UE5+Dev-Marketplace-Windows",
+			"AppName": "CrystalN603eb732ee73V6"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UE\\UE_5.7",
+			"NamespaceId": "89efe5924d3d467c839449ab6ab52e7f",
+			"ItemId": "50b4faa8f0fd4389a16d781dc8eb7a32",
+			"ArtifactId": "Materiale61e3769b8c8V9",
+			"AppVersion": "5.7.0-51083943+++UE5+Dev-Marketplace-Windows",
+			"AppName": "Materiale61e3769b8c8V9"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UnrealEngine\\UE4.26\\UE_4.26",
+			"NamespaceId": "89efe5924d3d467c839449ab6ab52e7f",
+			"ItemId": "029ade3a260246598e5f3be7e547d22b",
+			"ArtifactId": "BlueprintGraphScreenshot_4.26",
+			"AppVersion": "4.26.0-15265239+++depot+UE4-UserContent-Windows",
+			"AppName": "BlueprintGraphScreenshot_4.26"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UE\\UE_5.7",
+			"NamespaceId": "89efe5924d3d467c839449ab6ab52e7f",
+			"ItemId": "75dcef326efd4a4a98329bcdadfb290c",
+			"ArtifactId": "HLSLMate5739913ab071V8",
+			"AppVersion": "5.7.0-48908121+++UE5+Dev-Marketplace-Windows",
+			"AppName": "HLSLMate5739913ab071V8"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UnrealEngine\\UE_5.6",
+			"NamespaceId": "89efe5924d3d467c839449ab6ab52e7f",
+			"ItemId": "9164278fa3e945fcbc9b542bc0ef2d03",
+			"ArtifactId": "AutoSize9834891cfd42V17",
+			"AppVersion": "5.6.0-49831889+++UE5+Dev-Marketplace-Windows",
+			"AppName": "AutoSize9834891cfd42V17"
+		},
+		{
+			"InstallLocation": "D:\\004_App\\P_Softwave\\UE\\UE_5.8",
+			"NamespaceId": "ue",
+			"ItemId": "18b3b415bc434c5b974f50488360ca31",
+			"ArtifactId": "UE_5.8",
+			"AppVersion": "5.8.1-56057345+++UE5+Release-5.8-Windows",
+			"AppName": "UE_5.8"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UnrealEngine\\UE_5.6",
+			"NamespaceId": "89efe5924d3d467c839449ab6ab52e7f",
+			"ItemId": "a68d959302614a97bcaef7ce24b4eae1",
+			"ArtifactId": "Electron5474ffd7dc22V15",
+			"AppVersion": "5.6.0-43256683+++UE5+Dev-Marketplace-Windows",
+			"AppName": "Electron5474ffd7dc22V15"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UE\\UE_5.7",
+			"NamespaceId": "ue",
+			"ItemId": "7299c1cd206b4bb58658a98199b66860",
+			"ArtifactId": "UE_5.7",
+			"AppVersion": "5.7.4-51494982+++UE5+Release-5.7-Windows",
+			"AppName": "UE_5.7"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UnrealEngine\\UE_5.6",
+			"NamespaceId": "89efe5924d3d467c839449ab6ab52e7f",
+			"ItemId": "e9869dab0d4c4b2695fa4bc844e206e0",
+			"ArtifactId": "Untitled1a12d9ae57c2V1",
+			"AppVersion": "5.6.0-45139688+++UE5+Dev-Marketplace-Windows",
+			"AppName": "Untitled1a12d9ae57c2V1"
+		},
+		{
+			"InstallLocation": "D:\\SoftWave\\UE\\UE_5.3",
+			"NamespaceId": "ue",
+			"ItemId": "c5c30696e4e0482f9c0a170873975230",
+			"ArtifactId": "FabPlugin_5.3",
+			"AppVersion": "5.3.0-27405482+++UE5+Release-5.3-0.0.5-48594992-Windows",
+			"AppName": "FabPlugin_5.3"
+		}
+	]
+}
