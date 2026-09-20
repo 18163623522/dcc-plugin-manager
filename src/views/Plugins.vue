@@ -238,7 +238,10 @@ async function openDir(id: string) {
   max-width: 76%;
   padding: 9px 16px;
   border-radius: 12px;
-  background: var(--bg-pop);
+  background-color: var(--bg-pop);
+  background-image: var(--noise);
+  background-blend-mode: overlay;
+  backdrop-filter: blur(20px) saturate(var(--shell-saturate));
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   font-size: 12px;

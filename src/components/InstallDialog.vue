@@ -88,11 +88,15 @@ function confirm() {
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  background: var(--bg-pop);
-  backdrop-filter: blur(20px);
+  background-color: var(--bg-pop);
+  background-image: var(--noise);
+  background-blend-mode: overlay;
+  backdrop-filter: blur(20px) saturate(var(--shell-saturate));
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-pop);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
   padding: 20px;
   animation: pop-in 0.18s var(--ease-panel);
 }

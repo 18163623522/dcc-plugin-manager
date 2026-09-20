@@ -102,11 +102,18 @@ function switchTo(id: string) {
   position: absolute;
   inset: 0;
   display: flex;
-  background: var(--shell-bg);
-  backdrop-filter: blur(var(--shell-blur));
+  background-color: var(--shell-bg);
+  /* 噪点颗粒（overlay 混入底色）+ 顶部受光渐变：亚克力质感双层 */
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 150px),
+    var(--noise);
+  background-blend-mode: normal, overlay;
+  backdrop-filter: blur(var(--shell-blur)) saturate(var(--shell-saturate));
   border: var(--shell-border);
   border-radius: var(--shell-radius);
-  box-shadow: var(--shell-shadow);
+  box-shadow:
+    var(--shell-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06); /* 玻璃上缘受光 */
   overflow: hidden;
 }
 

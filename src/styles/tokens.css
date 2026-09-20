@@ -3,12 +3,17 @@
    冲突优先级：本文件 > beautifului（组件形态）> winui3（控件细节）
    ============================================================ */
 :root {
-  /* —— 外壳 —— */
-  --shell-bg: rgba(22, 22, 24, 0.88);
+  /* —— 外壳（亚克力材质，参数译自 ui-reference/winui3 AcrylicBrush_themeresources.xaml：
+        窗口级 TintOpacity 0.8 + 噪点颗粒；应用户要求提浊到 0.95，材质感由
+        噪点/饱和度/受光渐变补足，而非降低不透明度） —— */
+  --shell-bg: rgba(22, 22, 24, 0.95);
   --shell-blur: 24px;
+  --shell-saturate: 1.6;
   --shell-border: 1px solid rgba(255, 255, 255, 0.08);
   --shell-radius: 16px;
   --shell-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  /* 亚克力噪点（WinUI NoiseOpacity≈3% 的 CSS 等价物，feTurbulence 灰度颗粒） */
+  --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.18'/%3E%3C/svg%3E");
 
   /* —— 分层底色 —— */
   --bg-sunken: rgba(0, 0, 0, 0.22);   /* 信息条 / 日志面板 */
