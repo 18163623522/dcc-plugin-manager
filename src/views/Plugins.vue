@@ -112,30 +112,51 @@ const engineLabels = computed(() => [
   ...allEngines.value.Obsidian.map((v) => v.version),
 ]);
 
-/** 更新检查：远端新版本 → 黄点 + latest 字段 */
-async function checkUpdates() {
-  if (!inTauri) return;
+/** 更新检查：远端新版本 → 黄点 + latest 字段；返回可更新插件数 */
+async function checkUpdates(): Promise<number> {
+  if (!inTauri) return 0;
   try {
     const updates = await call<UpdateDto[]>("check_updates");
+    let available = 0;
     rows.value = rows.value.map((r) => {
       const u = updates.find((x) => x.id === r.id);
       if (!u || u.state.kind !== "available") return { ...r, status: r.status === "updatable" ? "installed" : r.status };
       const tag = u.state.newVersion;
+      if (r.status !== "idle") available++;
       return {
         ...r,
         status: r.status === "idle" ? "idle" : "updatable",
         latest: tag === "目录内容已变化" ? r.version : tag,
       };
     });
+    return available;
   } catch {
     /* 更新检查失败不打扰列表 */
+    return 0;
+  }
+}
+
+/** 手动「检查更新」：按钮转圈 + 结果 toast */
+const checking = ref(false);
+async function runCheckUpdates() {
+  if (checking.value) return;
+  checking.value = true;
+  try {
+    const n = await checkUpdates();
+    showToast(n > 0 ? `${n} 个插件可更新` : "全部已是最新", n > 0 ? "warn" : "ok");
+  } finally {
+    checking.value = false;
   }
 }
 
 let unlistenLog: UnlistenFn | null = null;
 onMounted(() => {
-  refresh();
-  loadEngines();
+  // 顺序：列表/引擎就绪后再查更新（联网数秒，黄点自然亮起，失败静默）
+  (async () => {
+    await refresh();
+    await loadEngines();
+    await checkUpdates();
+  })();
   if (inTauri) {
     listen<string>("install-log", (e) => {
       liveLog.value.push(e.payload);
@@ -365,7 +386,14 @@ async function openDir(id: string) {
 
 <template>
   <div class="page">
-    <FilterBar :model-value="filter" :engines="engineLabels" @update:model-value="applyFilter" @add="openAdd" />
+    <FilterBar
+      :model-value="filter"
+      :engines="engineLabels"
+      :checking="checking"
+      @update:model-value="applyFilter"
+      @add="openAdd"
+      @check-updates="runCheckUpdates"
+    />
     <PluginList
       :plugins="filtered"
       @primary="askInstall"

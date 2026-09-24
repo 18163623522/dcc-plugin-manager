@@ -2,8 +2,12 @@
 import { computed } from "vue";
 import type { FilterState } from "../types";
 
-const props = defineProps<{ modelValue: FilterState; engines?: string[] }>();
-const emit = defineEmits<{ "update:modelValue": [patch: Partial<FilterState>]; add: [] }>();
+const props = defineProps<{ modelValue: FilterState; engines?: string[]; checking?: boolean }>();
+const emit = defineEmits<{
+  "update:modelValue": [patch: Partial<FilterState>];
+  add: [];
+  checkUpdates: [];
+}>();
 
 interface ChipGroup {
   key: "host" | "status" | "source" | "engine";
@@ -96,6 +100,25 @@ function onSearch(e: Event) {
           @input="onSearch"
         />
       </label>
+      <button
+        class="ghost-btn"
+        :disabled="props.checking"
+        title="联网检查全部插件是否有新版本"
+        @click="emit('checkUpdates')"
+      >
+        <svg
+          :class="{ spin: props.checking }"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+        >
+          <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+          <path d="M20 4v4h-4" />
+        </svg>
+        {{ props.checking ? "检查中…" : "检查更新" }}
+      </button>
       <button class="primary-btn" @click="emit('add')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
           <path d="M12 5v14M5 12h14" />
@@ -225,5 +248,43 @@ function onSearch(e: Event) {
 }
 .primary-btn:active {
   transform: scale(0.96);
+}
+
+.ghost-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--radius-ctrl);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-1);
+  font-family: var(--font-stack);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.12s;
+}
+.ghost-btn svg {
+  width: 13px;
+  height: 13px;
+}
+.ghost-btn svg.spin {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.ghost-btn:hover {
+  background: var(--btn-hover);
+}
+.ghost-btn:active {
+  transform: scale(0.96);
+}
+.ghost-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 </style>
