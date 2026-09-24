@@ -431,6 +431,7 @@ pub async fn install_local(
     let obs_info = crate::detect::obsidian::detect_obsidian();
     let data = data_dir();
     let mut results = Vec::new();
+    let mut release_applied = false;
 
     for label in &engines {
         // 按插件类型解析目标（UE 引擎 / Houdini 安装 / Obsidian vault，label=vault id）
@@ -484,9 +485,12 @@ pub async fn install_local(
         }
 
         let result = install_one(&app, &entry, &pick, refs.as_ref(), &token, &data);
-        results.push(apply_result(&mut reg, &entry.id, label, result));
+        let (dto, tag_applied) = apply_result(&mut reg, &entry.id, label, result);
+        release_applied |= tag_applied;
+        results.push(dto);
     }
 
+    sync_entry_identity(&mut reg, &entry.id, release_applied, &data);
     let _ = save_registry(&reg);
     results
 }
@@ -707,13 +711,13 @@ pub fn pick_ref_for_engine(repo: &std::path::Path, engine_version: &str) -> Opti
     best.map(|(_, name)| name)
 }
 
-/// 单引擎安装结果落 registry（Release 安装附带 tag 版本）并返回 DTO。
+/// 单引擎安装结果落 registry（Release 安装附带 tag 版本）；返回 (DTO, 是否走了 Release 附件)。
 fn apply_result(
     reg: &mut Registry,
     id: &str,
     label: &str,
     result: Result<(InstalledTarget, Option<String>, InstallMethod), String>,
-) -> InstallResultDto {
+) -> (InstallResultDto, bool) {
     match result {
         Ok((mut target, tag, method)) => {
             target.method = method;
@@ -727,9 +731,51 @@ fn apply_result(
                 e.installed.retain(|t| t.engine != target.engine);
                 e.installed.push(target);
             }
-            InstallResultDto { engine: label.to_string(), ok: true, error: None }
+            (
+                InstallResultDto { engine: label.to_string(), ok: true, error: None },
+                tag.is_some(),
+            )
         }
-        Err(err) => InstallResultDto { engine: label.to_string(), ok: false, error: Some(err) },
+        Err(err) => (
+            InstallResultDto { engine: label.to_string(), ok: false, error: Some(err) },
+            false,
+        ),
+    }
+}
+
+/// 安装后同步登记身份（commit / 版本 / 本地摘要基线）到实际装到的内容。
+/// 不做这步，更新检查会拿旧基线比较——commit 通道与本地源刚装完就报"可更新"。
+fn sync_entry_identity(
+    reg: &mut Registry,
+    id: &str,
+    release_applied: bool,
+    data_dir: &std::path::Path,
+) {
+    let Some(e) = reg.plugins.iter_mut().find(|p| p.id == id) else { return };
+    let source = e.source.clone();
+    match source {
+        PluginSource::Git { url, .. } => {
+            // 缓存仓库停在最后安装的分支/标签上；更新检查的 commit 通道读的正是
+            // 这个位置（ensure_repo pull 当前分支 → head），登记同一基线才能正确比对
+            if let Ok(path) = git::repo_cache_path(data_dir, &url) {
+                if let Ok(st) = git::repo_state(&path) {
+                    e.commit = Some(st.head);
+                }
+                // Release 版本号已由 apply_result 落（tag 权威）；非 Release 跟随源码 uplugin
+                if !release_applied {
+                    if let Ok(inspected) = inspect_local(&path) {
+                        e.version = inspected.version;
+                    }
+                }
+            }
+        }
+        PluginSource::Local { path } => {
+            // 摘要基线对齐本次安装内容，否则本地源黄点永不消
+            e.local_digest = Some(crate::update::local_digest(&path).to_string());
+            if let Ok(inspected) = inspect_local(&path) {
+                e.version = inspected.version;
+            }
+        }
     }
 }
 
@@ -763,4 +809,55 @@ pub fn do_uninstall(id: String, engines: Vec<String>) -> UninstallReport {
     let report = run_uninstall(&mut reg, &id, &engines, true);
     let _ = save_registry(&reg);
     report
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_root(tag: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!(
+            "dpm-sync-{tag}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .subsec_nanos()
+        ));
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    /// 本地源安装后：摘要基线 + 版本号跟随源（更新黄点闭环的前提）。
+    #[test]
+    fn sync_local_refreshes_digest_and_version() {
+        let root = temp_root("local");
+        std::fs::write(
+            root.join("P.uplugin"),
+            "{\"Name\":\"P\",\"VersionName\":\"1.2.3\"}",
+        )
+        .unwrap();
+
+        let mut reg = Registry::default();
+        reg.upsert(PluginEntry {
+            id: "P".into(),
+            kind: PluginKind::Ue,
+            source: PluginSource::Local { path: root.clone() },
+            version: "0.0.1".into(),
+            desc: None,
+            commit: None,
+            local_digest: Some("0".into()), // 过期基线 = 黄点状态
+            installed: vec![],
+        });
+
+        sync_entry_identity(&mut reg, "P", false, &root);
+        let e = reg.get("P").unwrap();
+        assert_eq!(e.version, "1.2.3", "版本跟随源码 uplugin");
+        assert_eq!(
+            e.local_digest.as_deref(),
+            Some(crate::update::local_digest(&root).to_string()).as_deref(),
+            "摘要基线对齐安装内容"
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
 }

@@ -10,6 +10,8 @@ const props = defineProps<{
   compat: Record<string, CompatStatusDto>;
   /** engine → 预检结果（M3：文件锁/引擎残缺等阻塞原因） */
   preflight: Record<string, PreflightItem[]>;
+  /** 已装引擎预选（更新场景）；被兼容/预检挡下的仍不可选 */
+  preselect?: string[];
 }>();
 const emit = defineEmits<{ confirm: [engines: string[]]; cancel: [] }>();
 
@@ -23,6 +25,10 @@ watch(
     const pre = new Set<string>();
     for (const [engine, s] of Object.entries(props.compat)) {
       if (s.kind === "installable" && s.confirmed) pre.add(engine);
+    }
+    // 更新场景：已装引擎预选（被预检/兼容挡下的排除）
+    for (const e of props.preselect ?? []) {
+      if (!isBlocked(e)) pre.add(e);
     }
     checked.value = pre;
   }
@@ -85,7 +91,7 @@ function confirm() {
   <Teleport to="body">
     <div v-if="visible && plugin" class="overlay" @click.self="emit('cancel')">
       <div class="dialog">
-        <div class="title">安装 {{ plugin.name }}</div>
+        <div class="title">{{ plugin.status === "updatable" ? "更新" : "安装" }} {{ plugin.name }}</div>
         <div class="sub">
           {{
             plugin.host === "Obsidian"
@@ -128,7 +134,7 @@ function confirm() {
         <div class="footer">
           <button class="btn" @click="emit('cancel')">取消</button>
           <button class="btn primary" :disabled="checked.size === 0" @click="confirm">
-            安装到 {{ checked.size }} 个引擎
+            {{ plugin.status === "updatable" ? "更新到" : "安装到" }} {{ checked.size }} 个引擎
           </button>
         </div>
       </div>

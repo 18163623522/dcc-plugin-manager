@@ -213,6 +213,8 @@ const installDlg = ref(false);
 const installTarget = ref<PluginRow | null>(null);
 const installCompat = ref<Record<string, CompatStatusDto>>({});
 const installPreflight = ref<Record<string, PreflightItem[]>>({});
+/** 更新场景预选当前已装引擎 */
+const installPreselect = ref<string[]>([]);
 const progressDlg = ref(false);
 const progressDone = ref(false);
 const installToken = ref("");
@@ -225,6 +227,7 @@ async function askInstall(id: string) {
   installTarget.value = p;
   installCompat.value = {};
   installPreflight.value = {};
+  installPreselect.value = p.status === "updatable" ? p.engines : [];
   // 引擎列表按宿主切换（Houdini = 检测到的安装；Obsidian = 检测到的 vault）
   if (allEngines.value[p.host].length === 0) await loadEngines();
   engines.value = allEngines.value[p.host];
@@ -289,6 +292,8 @@ async function doInstall(selected: string[]) {
   }
   progressDone.value = true;
   await refresh();
+  // 安装后重查更新：基线已刷新，黄点应即时消掉（而非等下次启动检查）
+  await checkUpdates();
 }
 
 async function cancelInstall() {
@@ -383,12 +388,13 @@ async function openDir(id: string) {
       :engines="engines"
       :compat="installCompat"
       :preflight="installPreflight"
+      :preselect="installPreselect"
       @confirm="doInstall"
       @cancel="installDlg = false"
     />
     <InstallProgressDialog
       :visible="progressDlg"
-      :title="`安装 ${installTarget?.name ?? ''}`"
+      :title="`${installTarget?.status === 'updatable' ? '更新' : '安装'} ${installTarget?.name ?? ''}`"
       :lines="liveLog"
       :cancellable="true"
       :done="progressDone"
