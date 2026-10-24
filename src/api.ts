@@ -116,6 +116,19 @@ export interface EnginePreflight {
   items: PreflightItem[];
 }
 
+/** gh 账号名下非 fork 仓库（「导入我的 GitHub 仓库」列表项） */
+export interface RepoBrief {
+  fullName: string;
+  description?: string | null;
+  htmlUrl: string;
+}
+
+/** 批量导入报告 */
+export interface ImportReport {
+  added: string[];
+  failed: string[];
+}
+
 /** 设置与缓存（M6） */
 export interface Settings {
   extraUeRoots: string[];

@@ -236,11 +236,16 @@ pub fn add_local_source(path: String) -> Result<PluginDto, String> {
     Ok(to_dto(reg.get(&inspected.id).expect("刚 upsert")))
 }
 
-// ————————————————— 添加 GitHub 源（M2）—————————————————
+// ————————————————— 添加 GitHub 源（M2 / 导入 M7-pre）—————————————————
 
 /// clone/pull 缓存仓库 → 识别 → 登记。过程日志经 `install-log` 事件流式到 UI。
 #[tauri::command]
 pub async fn add_git_source(app: AppHandle, url: String) -> Result<PluginDto, String> {
+    add_one_git_source(&app, &url).await
+}
+
+/// 单个 git 源添加（add_git_source 与批量导入共用）。
+async fn add_one_git_source(app: &AppHandle, url: &str) -> Result<PluginDto, String> {
     let url = url.trim().to_string();
     let dir = data_dir();
 
@@ -272,6 +277,55 @@ pub async fn add_git_source(app: AppHandle, url: String) -> Result<PluginDto, St
     });
     save_registry(&reg)?;
     Ok(to_dto(reg.get(&inspected.id).expect("刚 upsert")))
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepoDto {
+    pub full_name: String,
+    pub description: Option<String>,
+    pub html_url: String,
+}
+
+/// 列出当前 gh 登录账号名下的非 fork 仓库（含私有），供「导入我的 GitHub 仓库」多选。
+#[tauri::command]
+pub async fn github_my_repos() -> Result<Vec<RepoDto>, String> {
+    git::list_my_repos().map(|v| {
+        v.into_iter()
+            .map(|r| RepoDto {
+                full_name: r.full_name,
+                description: r.description,
+                html_url: r.html_url,
+            })
+            .collect()
+    })
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportReport {
+    pub added: Vec<String>,
+    pub failed: Vec<String>,
+}
+
+/// 批量导入：逐个走 add 流水线（clone→识别→登记），单个失败不中断，日志流式到 UI。
+#[tauri::command]
+pub async fn import_github_repos(app: AppHandle, urls: Vec<String>) -> Result<ImportReport, String> {
+    let mut report = ImportReport {
+        added: Vec::new(),
+        failed: Vec::new(),
+    };
+    for url in &urls {
+        let _ = app.emit("install-log", format!("—— 导入 {url} ——"));
+        match add_one_git_source(&app, url).await {
+            Ok(dto) => report.added.push(dto.name),
+            Err(e) => {
+                let _ = app.emit("install-log", format!("✗ {url}：{e}"));
+                report.failed.push(format!("{url}：{e}"));
+            }
+        }
+    }
+    Ok(report)
 }
 
 /// git 源的引用枚举已内联进 compat_map（前端不直接消费，命令移除）。

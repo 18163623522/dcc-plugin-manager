@@ -16,6 +16,7 @@ import {
   type EnginePreflight,
   type EngineRow,
   type FilterState,
+  type ImportReport,
   type InstallResult,
   type PluginRow,
   type PreflightItem,
@@ -229,6 +230,24 @@ async function addGit(url: string) {
   addBusy.value = false;
 }
 
+/** 批量导入我名下的 GitHub 仓库（逐个走 add 流水线，失败不中断） */
+async function importRepos(urls: string[]) {
+  addBusy.value = true;
+  try {
+    const report = await call<ImportReport>("import_github_repos", { urls });
+    addDlg.value = false;
+    await refresh();
+    await checkUpdates();
+    const parts = [`成功 ${report.added.length}`];
+    if (report.failed.length) parts.push(`失败 ${report.failed.length}（见日志）`);
+    showToast(`导入完成：${parts.join("，")}`, report.failed.length ? "err" : "ok");
+  } catch (e) {
+    showToast(`导入失败：${e}`, "err");
+    liveLog.value.push(`✗ ${e}`);
+  }
+  addBusy.value = false;
+}
+
 /* ———— 安装（compat 徽标 + 预检门禁 + 进度日志浮层 + 可取消）———— */
 const installDlg = ref(false);
 const installTarget = ref<PluginRow | null>(null);
@@ -408,6 +427,7 @@ async function openDir(id: string) {
       :visible="addDlg"
       @add-local="addLocal"
       @add-git="addGit"
+      @import-repos="importRepos"
       @cancel="addDlg = false"
     />
     <InstallDialog

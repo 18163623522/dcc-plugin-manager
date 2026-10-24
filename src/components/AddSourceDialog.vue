@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { open } from "@tauri-apps/plugin-dialog";
+import { call, type RepoBrief } from "../api";
 
 defineProps<{ visible: boolean }>();
 const emit = defineEmits<{
   addLocal: [path: string];
   addGit: [url: string];
+  /** 批量导入我名下的 GitHub 仓库 */
+  importRepos: [urls: string[]];
   cancel: [];
 }>();
 
@@ -15,6 +18,53 @@ const pickedDir = ref("");
 /** add 过程日志（install-log 事件由父级灌进来） */
 const logLines = defineModel<string[]>({ default: () => [] });
 const busy = defineModel<boolean>("busy", { default: false });
+
+/* —— 我的 GitHub 仓库导入 —— */
+const repos = ref<RepoBrief[] | null>(null);
+const reposLoading = ref(false);
+const reposErr = ref("");
+const picked = ref<Set<string>>(new Set());
+
+async function loadRepos() {
+  if (repos.value || reposLoading.value) return;
+  reposLoading.value = true;
+  reposErr.value = "";
+  try {
+    repos.value = await call<RepoBrief[]>("github_my_repos");
+  } catch (e) {
+    reposErr.value = String(e);
+  }
+  reposLoading.value = false;
+}
+
+function toggleRepo(full: string) {
+  const next = new Set(picked.value);
+  if (next.has(full)) next.delete(full);
+  else next.add(full);
+  picked.value = next;
+}
+
+const primaryText = computed(() =>
+  busy.value
+    ? "处理中…"
+    : mode.value === "git" && picked.value.size > 0
+      ? `导入（${picked.value.size}）`
+      : "添加",
+);
+const primaryDisabled = computed(
+  () =>
+    busy.value ||
+    (mode.value === "local" ? !pickedDir.value : picked.value.size === 0 && !url.value.trim()),
+);
+
+function onPrimary() {
+  if (busy.value) return;
+  if (mode.value === "git" && picked.value.size > 0) {
+    emit("importRepos", [...picked.value].map((n) => `https://github.com/${n}`));
+  } else {
+    confirm();
+  }
+}
 
 async function pickFolder() {
   const dir = await open({ directory: true, title: "选择插件目录（含 .uplugin 或 Houdini 包）" });
@@ -61,6 +111,25 @@ function confirm() {
             @keyup.enter="confirm"
           />
           <div class="hint">clone 到本地缓存（已登录 gh 免配置；Release 附件优先安装，无附件走源码构建）</div>
+
+          <button class="pick-btn import" :disabled="busy || reposLoading" @click="loadRepos">
+            {{ reposLoading ? "读取仓库列表中…" : "从我的 GitHub 导入仓库" }}
+          </button>
+          <div v-if="reposErr" class="picked">{{ reposErr }}</div>
+          <div v-if="repos" class="repo-list">
+            <label
+              v-for="r in repos"
+              :key="r.fullName"
+              class="repo"
+              :class="{ on: picked.has(r.fullName) }"
+            >
+              <input type="checkbox" :checked="picked.has(r.fullName)" @change="toggleRepo(r.fullName)" />
+              <span class="rname mono">{{ r.fullName }}</span>
+              <span class="rdesc" :title="r.description ?? ''">{{ r.description ?? "" }}</span>
+            </label>
+            <div v-if="repos.length === 0" class="hint">名下没有非 fork 仓库</div>
+          </div>
+          <div v-if="picked.size" class="hint">已选 {{ picked.size }} 个，点下方按钮批量导入（识别不了的仓库会跳过并报告）</div>
         </div>
 
         <div v-if="logLines.length" class="log mono">
@@ -69,12 +138,8 @@ function confirm() {
 
         <div class="footer">
           <button class="btn" :disabled="busy" @click="emit('cancel')">取消</button>
-          <button
-            class="btn primary"
-            :disabled="busy || (mode === 'local' ? !pickedDir : !url.trim())"
-            @click="confirm"
-          >
-            {{ busy ? "处理中…" : "添加" }}
+          <button class="btn primary" :disabled="primaryDisabled" @click="onPrimary">
+            {{ primaryText }}
           </button>
         </div>
       </div>
@@ -173,6 +238,59 @@ function confirm() {
 .pick-btn:hover {
   border-color: var(--accent-text);
   background: var(--accent-soft-bg);
+}
+.pick-btn.import {
+  width: 100%;
+  justify-content: center;
+  margin-top: 10px;
+  border-style: solid;
+}
+
+/* 我的仓库多选列表 */
+.repo-list {
+  margin-top: 10px;
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.repo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--tsep, rgba(255, 255, 255, 0.1));
+  border-color: var(--stroke-ctrl);
+  border-radius: var(--radius-ctrl);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.repo:hover {
+  background: var(--btn-hover);
+}
+.repo.on {
+  background: var(--accent-soft-bg);
+  border-color: var(--accent-soft-border);
+}
+.repo input {
+  accent-color: var(--accent-fill);
+  flex: none;
+}
+.rname {
+  font-size: 11.5px;
+  color: var(--text-1);
+  flex: none;
+  font-weight: 600;
+}
+.rdesc {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+  color: var(--text-2);
 }
 .pick-btn svg {
   width: 15px;

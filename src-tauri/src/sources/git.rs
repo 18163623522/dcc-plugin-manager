@@ -281,6 +281,70 @@ pub fn gh_available() -> bool {
         .unwrap_or(false)
 }
 
+/// Windows 下隐藏控制台窗口（防 gh/git 调用闪黑框）。
+#[cfg(windows)]
+fn no_window(mut cmd: Command) -> Command {
+    use std::os::windows::process::CommandExt;
+    cmd.creation_flags(0x0800_0000);
+    cmd
+}
+#[cfg(not(windows))]
+fn no_window(cmd: Command) -> Command {
+    cmd
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct RepoBrief {
+    /// "owner/repo"
+    pub full_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    pub html_url: String,
+}
+
+/// 列出当前 gh 登录账号名下的非 fork 仓库（含私有）——「导入我的 GitHub 仓库」数据源。
+pub fn list_my_repos() -> Result<Vec<RepoBrief>, String> {
+    if !gh_available() {
+        return Err("未检测到 gh CLI（需已登录 GitHub）".into());
+    }
+    let out = no_window(Command::new("gh"))
+        .args([
+            "repo",
+            "list",
+            "--limit",
+            "300",
+            "--json",
+            "nameWithOwner,description,isFork,url",
+        ])
+        .output()
+        .map_err(|e| format!("gh repo list 启动失败：{e}"))?;
+    if !out.status.success() {
+        return Err(format!(
+            "gh repo list 失败：{}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    #[derive(serde::Deserialize)]
+    struct GhRepo {
+        #[serde(rename = "nameWithOwner")]
+        name_with_owner: String,
+        description: Option<String>,
+        is_fork: bool,
+        url: String,
+    }
+    let repos: Vec<GhRepo> =
+        serde_json::from_slice(&out.stdout).map_err(|e| format!("gh 输出解析失败：{e}"))?;
+    Ok(repos
+        .into_iter()
+        .filter(|r| !r.is_fork)
+        .map(|r| RepoBrief {
+            description: r.description.filter(|s| !s.trim().is_empty()),
+            full_name: r.name_with_owner,
+            html_url: r.url,
+        })
+        .collect())
+}
+
 /// 读某引用下的第一个 .uplugin 内容（compat 权威确认用，本地 git show，零网络）。
 /// 返回 (uplugin 相对路径, 文件内容)。
 pub fn read_uplugin_at(path: &Path, git_ref: &str) -> Result<(String, String), GitError> {

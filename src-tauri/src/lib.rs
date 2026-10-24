@@ -19,6 +19,8 @@ pub fn run() {
             commands::list_plugins,
             commands::add_local_source,
             commands::add_git_source,
+            commands::github_my_repos,
+            commands::import_github_repos,
             commands::check_updates,
             commands::compat_for,
             commands::compat_all,
