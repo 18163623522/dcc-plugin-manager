@@ -15,6 +15,19 @@ const cache = ref<CacheStats | null>(null);
 const env = ref<EnvStatus | null>(null);
 const roots = ref<string[]>([]);
 const busy = ref("");
+const theme = ref<"default" | "winui3">("default");
+
+/** 主题切换：html[data-theme] 驱动 tokens.css 双主题变量组 */
+function applyTheme(t: "default" | "winui3") {
+  document.documentElement.dataset.theme = t;
+}
+
+async function setTheme(t: "default" | "winui3") {
+  if (theme.value === t) return;
+  theme.value = t;
+  applyTheme(t);
+  await save();
+}
 
 const toast = ref<{ msg: string; tone: "ok" | "err" } | null>(null);
 let timer: number | undefined;
@@ -29,7 +42,10 @@ async function refresh() {
   try {
     cache.value = await call<CacheStats>("cache_stats");
     env.value = await call<EnvStatus>("env_status");
-    roots.value = (await call<Settings>("get_settings")).extraUeRoots;
+    const s = await call<Settings>("get_settings");
+    roots.value = s.extraUeRoots;
+    theme.value = s.theme === "winui3" ? "winui3" : "default";
+    applyTheme(theme.value);
   } catch (e) {
     showToast(`读取设置失败：${e}`, "err");
   }
@@ -66,7 +82,7 @@ async function removeRoot(dir: string) {
 
 async function save() {
   try {
-    await call("save_settings", { roots: roots.value });
+    await call("save_settings", { roots: roots.value, theme: theme.value });
     showToast("已保存（引擎页重新检测后生效）", "ok");
   } catch (e) {
     showToast(`保存失败：${e}`, "err");
@@ -76,6 +92,21 @@ async function save() {
 
 <template>
   <div class="page">
+    <section>
+      <h3>主题</h3>
+      <div class="row">
+        <span class="k">界面风格</span>
+        <div class="seg">
+          <button class="seg-btn" :class="{ active: theme === 'default' }" @click="setTheme('default')">原版</button>
+          <button class="seg-btn" :class="{ active: theme === 'winui3' }" @click="setTheme('winui3')">WinUI 3</button>
+        </div>
+      </div>
+      <div class="note">
+        原版：obs-float-bar 观感（软蓝操作钮、无控件描边）；
+        WinUI 3：Fluent 控件层（SystemAccentColor 色阶、按钮四态描边、输入框焦点条）。即时生效并记忆。
+      </div>
+    </section>
+
     <section>
       <h3>缓存</h3>
       <div class="row" v-if="cache">
@@ -195,12 +226,13 @@ h3 {
 }
 .btn.add {
   margin-top: 6px;
-  background: var(--accent-fill);
-  border-color: transparent;
-  color: #fff;
+  background: var(--btn-accent-bg);
+  border-color: var(--btn-accent-border);
+  color: var(--btn-accent-fg);
 }
 .btn.add:hover:not(:disabled) {
-  background: var(--accent-fill-hover);
+  background: var(--btn-accent-bg-hover);
+  color: var(--btn-accent-fg-hover);
 }
 
 .badge {
@@ -239,6 +271,34 @@ h3 {
 }
 .toast.err {
   border-color: rgba(255, 69, 58, 0.45);
+}
+
+/* 主题分段选择（WinUI Selector / ToggleButton 分段形态） */
+.seg {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: var(--radius-ctrl);
+  background: var(--bg-sunken);
+}
+.seg-btn {
+  height: 26px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-2);
+  font-family: var(--font-stack);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.seg-btn:hover {
+  color: var(--text-1);
+}
+.seg-btn.active {
+  background: var(--btn-accent-bg);
+  color: var(--btn-accent-fg);
 }
 .toast-enter-active,
 .toast-leave-active {

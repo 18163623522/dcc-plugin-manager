@@ -56,9 +56,12 @@ pub fn get_settings() -> crate::settings::Settings {
 }
 
 #[tauri::command]
-pub fn save_settings(roots: Vec<String>) -> Result<(), String> {
+pub fn save_settings(roots: Vec<String>, theme: Option<String>) -> Result<(), String> {
     let mut s = crate::settings::load(&data_dir());
     s.extra_ue_roots = roots.into_iter().map(PathBuf::from).collect();
+    if let Some(t) = theme {
+        s.theme = t;
+    }
     crate::settings::save(&data_dir(), &s).map_err(|e| e.to_string())
 }
 

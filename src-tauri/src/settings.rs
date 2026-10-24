@@ -9,6 +9,18 @@ pub struct Settings {
     /// 自定义 UE 引擎根目录（源码引擎等非 Launcher 安装，RunUAT 存在性校验）
     #[serde(default)]
     pub extra_ue_roots: Vec<PathBuf>,
+    /// UI 主题："default"（obs-float-bar 原版）| "winui3"（Fluent 控件层）；空串=default
+    #[serde(default)]
+    pub theme: String,
+}
+
+impl Settings {
+    pub fn effective_theme(&self) -> &str {
+        match self.theme.as_str() {
+            "winui3" => "winui3",
+            _ => "default",
+        }
+    }
 }
 
 pub const SETTINGS_FILE: &str = "settings.json";
@@ -48,9 +60,18 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let s = Settings {
             extra_ue_roots: vec![PathBuf::from(r"E:\UE\UE_5.7.4")],
+            theme: "winui3".into(),
         };
         save(&dir, &s).unwrap();
         assert_eq!(load(&dir).extra_ue_roots, s.extra_ue_roots);
+        assert_eq!(load(&dir).effective_theme(), "winui3");
+        // 旧 schema 无 theme 字段 → 缺省回 default
+        std::fs::write(
+            dir.join(SETTINGS_FILE),
+            r#"{"extraUeRoots":["E:\\x"]}"#,
+        )
+        .unwrap();
+        assert_eq!(load(&dir).effective_theme(), "default");
         // 损坏 → 备份 + 默认
         std::fs::write(dir.join(SETTINGS_FILE), "{ broken").unwrap();
         assert!(load(&dir).extra_ue_roots.is_empty());

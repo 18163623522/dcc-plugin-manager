@@ -119,6 +119,8 @@ export interface EnginePreflight {
 /** 设置与缓存（M6） */
 export interface Settings {
   extraUeRoots: string[];
+  /** UI 主题："default"（obs-float-bar 原版）| "winui3"（Fluent 控件层） */
+  theme: string;
 }
 
 export interface CacheStats {

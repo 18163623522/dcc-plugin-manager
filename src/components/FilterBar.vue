@@ -203,7 +203,7 @@ function onSearch(e: Event) {
 }
 .search:focus-within {
   border-color: var(--accent-text);
-  box-shadow: inset 0 -2px 0 0 var(--accent-text);
+  box-shadow: var(--focus-underline, none);
 }
 .search svg {
   width: 14px;

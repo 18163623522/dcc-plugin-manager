@@ -172,7 +172,7 @@ function confirm() {
 }
 .pick-btn:hover {
   border-color: var(--accent-text);
-  background: rgba(0, 103, 192, 0.08);
+  background: var(--accent-soft-bg);
 }
 .pick-btn svg {
   width: 15px;
@@ -202,7 +202,7 @@ function confirm() {
 }
 .url-input:focus {
   border-color: var(--accent-text);
-  box-shadow: inset 0 -2px 0 0 var(--accent-text);
+  box-shadow: var(--focus-underline, none);
 }
 .url-input::placeholder {
   color: var(--text-sep);
@@ -251,15 +251,16 @@ function confirm() {
   border-color: var(--stroke-ctrl);
 }
 .btn.primary {
-  background: var(--accent-fill);
-  border-color: transparent;
-  color: #fff;
+  background: var(--btn-accent-bg);
+  border-color: var(--btn-accent-border);
+  color: var(--btn-accent-fg);
 }
 .btn.primary:hover {
-  background: var(--accent-fill-hover);
+  background: var(--btn-accent-bg-hover);
+  color: var(--btn-accent-fg-hover);
 }
 .btn.primary:active {
-  background: var(--accent-fill-pressed);
+  background: var(--btn-accent-bg-active);
 }
 .btn:disabled {
   opacity: 0.45;

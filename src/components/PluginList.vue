@@ -217,7 +217,7 @@ function onlineUrl(p: PluginRow): string | null {
   letter-spacing: 0.02em;
 }
 .host-badge.ue {
-  background: rgba(0, 103, 192, 0.24);
+  background: var(--accent-badge-bg);
   color: var(--accent-text-strong);
 }
 .host-badge.hou {
@@ -315,17 +315,18 @@ function onlineUrl(p: PluginRow): string | null {
 .act:active {
   transform: scale(0.94);
 }
-/* Accent 实底（AccentButtonStyle 深色主题：SystemAccentColorDark1） */
+/* 主操作钮：主题化（原版软蓝 chip / winui3 实底 Accent） */
 .act.primary {
-  background: var(--accent-fill);
-  border-color: transparent;
-  color: #fff;
+  background: var(--btn-accent-bg);
+  border-color: var(--btn-accent-border);
+  color: var(--btn-accent-fg);
 }
 .act.primary:hover {
-  background: var(--accent-fill-hover);
+  background: var(--btn-accent-bg-hover);
+  color: var(--btn-accent-fg-hover);
 }
 .act.primary:active {
-  background: var(--accent-fill-pressed);
+  background: var(--btn-accent-bg-active);
 }
 
 .act.icon {

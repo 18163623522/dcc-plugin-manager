@@ -216,8 +216,8 @@ function confirm() {
   background: rgba(255, 255, 255, 0.05);
 }
 .engine-item.checked {
-  background: rgba(0, 103, 192, 0.12);
-  border-color: rgba(0, 103, 192, 0.45);
+  background: var(--accent-soft-bg);
+  border-color: var(--accent-soft-border);
 }
 .engine-item.banned {
   opacity: 0.55;
@@ -225,8 +225,7 @@ function confirm() {
 }
 .engine-item input {
   accent-color: var(--accent-fill);
-}
-.ver {
+}.ver {
   font-size: 13px;
   color: var(--text-num);
   font-weight: 600;
@@ -301,15 +300,16 @@ function confirm() {
   background: var(--btn-hover);
 }
 .btn.primary {
-  background: var(--accent-fill);
-  border-color: transparent;
-  color: #fff;
+  background: var(--btn-accent-bg);
+  border-color: var(--btn-accent-border);
+  color: var(--btn-accent-fg);
 }
 .btn.primary:hover {
-  background: var(--accent-fill-hover);
+  background: var(--btn-accent-bg-hover);
+  color: var(--btn-accent-fg-hover);
 }
 .btn.primary:active {
-  background: var(--accent-fill-pressed);
+  background: var(--btn-accent-bg-active);
 }
 .btn.primary:disabled {
   opacity: 0.4;
