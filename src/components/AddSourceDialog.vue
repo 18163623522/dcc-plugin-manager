@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { open } from "@tauri-apps/plugin-dialog";
 import { call, type RepoBrief } from "../api";
 
@@ -36,6 +36,11 @@ async function loadRepos() {
   }
   reposLoading.value = false;
 }
+
+// 切到 GitHub 页自动加载仓库列表（省一次点击）
+watch(mode, (m) => {
+  if (m === "git") loadRepos();
+});
 
 function toggleRepo(full: string) {
   const next = new Set(picked.value);

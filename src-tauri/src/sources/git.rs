@@ -345,6 +345,60 @@ pub fn list_my_repos() -> Result<Vec<RepoBrief>, String> {
         .collect())
 }
 
+/// 远程探测仓库根目录是否像 DCC 插件仓库（不 clone，gh contents API，~1-2 次/仓库）：
+/// 根有 *.uplugin → UE；根有 otls/hda 目录 → Houdini；manifest.json 含 minAppVersion → Obsidian。
+pub fn repo_looks_like_plugin(full_name: &str) -> bool {
+    let list = no_window(Command::new("gh"))
+        .args([
+            "api",
+            &format!("repos/{full_name}/contents"),
+            "--jq",
+            ".[].name",
+        ])
+        .output();
+    let Ok(out) = list else {
+        return false;
+    };
+    if !out.status.success() {
+        return false;
+    }
+    let names: Vec<String> = String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .map(|l| l.trim().to_string())
+        .filter(|l| !l.is_empty())
+        .collect();
+
+    if names
+        .iter()
+        .any(|n| n.to_ascii_lowercase().ends_with(".uplugin"))
+    {
+        return true;
+    }
+    if names
+        .iter()
+        .any(|n| n.eq_ignore_ascii_case("otls") || n.eq_ignore_ascii_case("hda"))
+    {
+        return true;
+    }
+    if names.iter().any(|n| n.eq_ignore_ascii_case("manifest.json")) {
+        // raw 直读确认是 Obsidian manifest（避免把别人的 manifest.json 误收）
+        let raw = no_window(Command::new("gh"))
+            .args([
+                "api",
+                &format!("repos/{full_name}/contents/manifest.json"),
+                "-H",
+                "Accept: application/vnd.github.raw",
+            ])
+            .output();
+        if let Ok(o) = raw {
+            if o.status.success() {
+                return String::from_utf8_lossy(&o.stdout).contains("minAppVersion");
+            }
+        }
+    }
+    false
+}
+
 /// 读某引用下的第一个 .uplugin 内容（compat 权威确认用，本地 git show，零网络）。
 /// 返回 (uplugin 相对路径, 文件内容)。
 pub fn read_uplugin_at(path: &Path, git_ref: &str) -> Result<(String, String), GitError> {

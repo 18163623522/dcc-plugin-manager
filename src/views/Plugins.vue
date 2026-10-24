@@ -248,6 +248,32 @@ async function importRepos(urls: string[]) {
   addBusy.value = false;
 }
 
+/* 一键智能导入：探测名下仓库，插件类的自动进流水线 */
+const smartImporting = ref(false);
+
+async function smartImport() {
+  if (smartImporting.value) return;
+  smartImporting.value = true;
+  addBusy.value = true;
+  addDlg.value = true; // 复用日志面板看探测进度
+  liveLog.value = [];
+  try {
+    const report = await call<ImportReport>("smart_import_github", {});
+    addDlg.value = false;
+    await refresh();
+    await checkUpdates();
+    const parts = [`导入 ${report.added.length}`];
+    if (report.failed.length) parts.push(`失败 ${report.failed.length}（见日志）`);
+    showToast(`探测完成：${parts.join("，")}`, report.failed.length ? "err" : "ok");
+  } catch (e) {
+    addDlg.value = false;
+    showToast(`导入失败：${e}`, "err");
+    liveLog.value.push(`✗ ${e}`);
+  }
+  smartImporting.value = false;
+  addBusy.value = false;
+}
+
 /* ———— 安装（compat 徽标 + 预检门禁 + 进度日志浮层 + 可取消）———— */
 const installDlg = ref(false);
 const installTarget = ref<PluginRow | null>(null);
@@ -415,10 +441,13 @@ async function openDir(id: string) {
     />
     <PluginList
       :plugins="filtered"
+      :has-any="rows.length > 0"
+      :importing="smartImporting"
       @primary="askInstall"
       @uninstall="askUninstall"
       @open-dir="openDir"
       @clear-filters="clearFilters"
+      @smart-import="smartImport"
     />
 
     <AddSourceDialog

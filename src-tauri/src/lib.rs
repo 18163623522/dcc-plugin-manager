@@ -21,6 +21,7 @@ pub fn run() {
             commands::add_git_source,
             commands::github_my_repos,
             commands::import_github_repos,
+            commands::smart_import_github,
             commands::check_updates,
             commands::compat_for,
             commands::compat_all,

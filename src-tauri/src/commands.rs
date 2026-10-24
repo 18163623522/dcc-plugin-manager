@@ -328,6 +328,46 @@ pub async fn import_github_repos(app: AppHandle, urls: Vec<String>) -> Result<Im
     Ok(report)
 }
 
+/// 一键智能导入：列出账号名下仓库 → 逐个远程探测是否 DCC 插件仓库 →
+/// 只把像插件的拉进流水线，其余跳过（不 clone 非插件仓库）。
+#[tauri::command]
+pub async fn smart_import_github(app: AppHandle) -> Result<ImportReport, String> {
+    let repos = git::list_my_repos()?;
+    let mut report = ImportReport {
+        added: Vec::new(),
+        failed: Vec::new(),
+    };
+    let mut skipped = 0usize;
+    let _ = app.emit(
+        "install-log",
+        format!("—— 共 {} 个仓库，开始探测 ——", repos.len()),
+    );
+    for r in &repos {
+        let _ = app.emit("install-log", format!("探测 {} …", r.full_name));
+        if !git::repo_looks_like_plugin(&r.full_name) {
+            skipped += 1;
+            continue;
+        }
+        let _ = app.emit("install-log", format!("✓ {} 是插件仓库，导入", r.full_name));
+        match add_one_git_source(&app, &r.html_url).await {
+            Ok(dto) => report.added.push(dto.name),
+            Err(e) => report
+                .failed
+                .push(format!("{}：{}", r.full_name, e)),
+        }
+    }
+    let _ = app.emit(
+        "install-log",
+        format!(
+            "—— 完成：导入 {}，跳过 {}（非插件仓库），失败 {} ——",
+            report.added.len(),
+            skipped,
+            report.failed.len()
+        ),
+    );
+    Ok(report)
+}
+
 /// git 源的引用枚举已内联进 compat_map（前端不直接消费，命令移除）。
 
 // ————————————————— 更新检查（M2）—————————————————

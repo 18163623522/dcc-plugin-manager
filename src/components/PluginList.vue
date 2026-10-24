@@ -3,13 +3,15 @@ import StatusDot from "./StatusDot.vue";
 import EngineChip from "./EngineChip.vue";
 import type { PluginRow } from "../types";
 
-defineProps<{ plugins: PluginRow[] }>();
+defineProps<{ plugins: PluginRow[]; hasAny?: boolean; importing?: boolean }>();
 const emit = defineEmits<{
   /** 行内主操作（安装/更新/重试，随状态变化） */
   primary: [id: string];
   uninstall: [id: string];
   openDir: [id: string];
   clearFilters: [];
+  /** 空状态一键智能导入 */
+  smartImport: [];
 }>();
 
 const statusToDot: Record<PluginRow["status"], "ok" | "warn" | "idle" | "err"> = {
@@ -64,8 +66,19 @@ function onlineUrl(p: PluginRow): string | null {
 <template>
   <div class="cards" role="list">
     <div v-if="plugins.length === 0" class="empty">
-      <div class="empty-title">没有匹配的插件</div>
-      <button class="link-btn" @click="emit('clearFilters')">清除筛选</button>
+      <template v-if="hasAny">
+        <div class="empty-title">没有匹配的插件</div>
+        <button class="link-btn" @click="emit('clearFilters')">清除筛选</button>
+      </template>
+      <template v-else>
+        <div class="empty-title">还没有插件</div>
+        <button class="big-import" :disabled="importing" @click="emit('smartImport')">
+          {{ importing ? "正在探测你的 GitHub 仓库…" : "从我的 GitHub 导入插件仓库" }}
+        </button>
+        <div class="empty-sub">
+          自动识别你名下含 .uplugin / Obsidian manifest / Houdini 包的仓库，其余跳过；也可用右上角「添加源」手动指定
+        </div>
+      </template>
     </div>
 
     <article
@@ -168,6 +181,36 @@ function onlineUrl(p: PluginRow): string | null {
 }
 .link-btn:hover {
   text-decoration: underline;
+}
+
+/* 空状态主行动钮：主题化强调实底 */
+.big-import {
+  height: 34px;
+  padding: 0 20px;
+  border: 1px solid var(--btn-accent-border);
+  border-radius: var(--radius-ctrl);
+  background: var(--btn-accent-bg);
+  color: var(--btn-accent-fg);
+  font-family: var(--font-stack);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.big-import:hover:not(:disabled) {
+  background: var(--btn-accent-bg-hover);
+  color: var(--btn-accent-fg-hover);
+}
+.big-import:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.empty-sub {
+  max-width: 380px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-2);
+  line-height: 1.6;
 }
 
 .card {
