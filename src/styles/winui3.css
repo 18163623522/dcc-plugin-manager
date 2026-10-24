@@ -1,0 +1,104 @@
+/* ============================================================
+   WinUI 3 / Fluent 控件层
+   来源：ui-reference/winui3/xaml（microsoft-ui-xaml main @ da997f8，MIT）
+   换算规则：XAML 主题画刷 → CSS 变量（tokens.css 深色主题列）；
+   四态 Normal / PointerOver / Pressed / Disabled 按 VisualState 语义落地。
+
+   基调分工（设计文档 §6.2）：obs-float-bar 定外壳与密度（tokens.css），
+   本文件定控件级 Fluent 细节——强调色阶、按钮三变体、输入框焦点态、
+   InfoBar / Progress 工具类。与组件内 scoped 样式配合：组件引用本层变量。
+   ============================================================ */
+
+/* —— 键盘焦点环（FocusVisual：外黑内白双线，深色主题反转） —— */
+:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.8);
+}
+
+/* —— 复选框/单选的强调色（CheckBox/ToggleButton FillColor） —— */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent-fill);
+}
+
+/* —— TextBox 焦点态：全边框转强调色 + 底部 2px 强调条
+      （TextBox_themeresources：FocusUnderline 2px SystemAccentColor） —— */
+input[type="text"],
+input[type="url"],
+input[type="search"],
+textarea {
+  transition: border-color 0.1s, box-shadow 0.1s;
+}
+input[type="text"]:focus,
+input[type="url"]:focus,
+input[type="search"]:focus,
+textarea:focus {
+  border-color: var(--accent-text);
+  box-shadow: inset 0 -2px 0 0 var(--accent-text);
+  outline: none;
+}
+
+/* —— InfoBar 四态（InfoBar_themeresources：严重度底色 = 语义色 12% 叠加，
+      左侧图标区强调；供诊断详情面板（M7 preflight UI）直接使用） —— */
+.infobar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius-ctrl);
+  font-size: 12px;
+  border: 1px solid transparent;
+}
+.infobar.informational {
+  background: rgba(0, 103, 192, 0.14);
+  border-color: rgba(0, 103, 192, 0.35);
+  color: var(--accent-text-strong);
+}
+.infobar.success {
+  background: rgba(48, 209, 88, 0.12);
+  border-color: rgba(48, 209, 88, 0.3);
+  color: var(--c-ok);
+}
+.infobar.warning {
+  background: rgba(255, 214, 10, 0.1);
+  border-color: rgba(255, 214, 10, 0.28);
+  color: var(--c-warn);
+}
+.infobar.error {
+  background: rgba(255, 69, 58, 0.12);
+  border-color: rgba(255, 69, 58, 0.32);
+  color: var(--c-err);
+}
+.infobar .bar-title {
+  font-weight: 600;
+}
+.infobar .bar-msg {
+  color: var(--text-2);
+}
+
+/* —— 细进度条（ProgressBar_themeresources：3px 轨道 + 强调色填充） —— */
+.wui-progress {
+  height: 3px;
+  border-radius: 1.5px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.wui-progress > * {
+  height: 100%;
+  background: var(--accent-fill);
+  transition: width 0.25s var(--ease-panel);
+}
+/* 不确定态：Error 主题色块循环（等价 IsIndeterminate） */
+.wui-progress.indeterminate > * {
+  width: 40%;
+  animation: wui-indeterminate 1.4s var(--ease-panel) infinite;
+}
+@keyframes wui-indeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(350%);
+  }
+}

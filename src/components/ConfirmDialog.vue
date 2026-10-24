@@ -123,27 +123,32 @@ const emit = defineEmits<{ confirm: []; cancel: [] }>();
   margin-top: 16px;
 }
 
+/* Standard / Danger：ControlFill + ControlStroke；danger 实底红 */
 .btn {
   height: 30px;
   padding: 0 14px;
-  border: none;
+  border: 1px solid var(--stroke-ctrl);
   border-radius: var(--radius-ctrl);
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--btn-rest);
   color: var(--text-1);
   font-family: var(--font-stack);
   font-size: 12px;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background 0.12s, border-color 0.12s;
 }
 .btn:hover {
   background: var(--btn-hover);
 }
 .btn.danger {
   background: var(--c-err);
+  border-color: transparent;
   color: #fff;
 }
 .btn.danger:hover {
-  filter: brightness(1.12);
+  filter: brightness(1.1);
+}
+.btn.danger:active {
+  filter: brightness(0.88);
 }
 .btn:disabled {
   opacity: 0.5;

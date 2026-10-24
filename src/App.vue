@@ -69,9 +69,9 @@ function switchTo(id: string) {
         </button>
       </nav>
       <div class="side-foot">
-        <span class="mono num">v0.1.0</span>
+        <span class="mono num">v0.1.2</span>
         <span class="sep">·</span>
-        <span>M1</span>
+        <span>更新闭环</span>
       </div>
     </aside>
 
@@ -173,9 +173,10 @@ function switchTo(id: string) {
   color: var(--text-1);
 }
 .nav-item.active {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--btn-hover);
   color: var(--text-1);
 }
+/* NavigationViewItemSelectionIndicator：3px 圆角竖条，SystemAccentColor */
 .nav-item.active::before {
   content: "";
   position: absolute;
@@ -183,9 +184,9 @@ function switchTo(id: string) {
   top: 50%;
   transform: translateY(-50%);
   width: 3px;
-  height: 16px;
-  border-radius: 2px;
-  background: var(--c-primary);
+  height: 20px;
+  border-radius: 1.5px;
+  background: var(--accent-base);
 }
 
 .side-foot {

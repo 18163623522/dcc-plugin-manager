@@ -195,8 +195,12 @@ h3 {
 }
 .btn.add {
   margin-top: 6px;
-  background: rgba(10, 132, 255, 0.18);
-  color: #6db2ff;
+  background: var(--accent-fill);
+  border-color: transparent;
+  color: #fff;
+}
+.btn.add:hover:not(:disabled) {
+  background: var(--accent-fill-hover);
 }
 
 .badge {

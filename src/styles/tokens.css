@@ -20,25 +20,36 @@
   --bg-panel: rgba(0, 0, 0, 0.14);    /* 面板区再加一档暗 */
   --bg-pop: rgba(32, 32, 36, 0.97);   /* 弹层深底 */
 
-  /* —— 文本层级 —— */
-  --text-1: rgba(255, 255, 255, 0.92); /* 主文本 */
-  --text-2: rgba(255, 255, 255, 0.55); /* 次级 */
+  /* —— 文本层级（WinUI 3 深色主题 TextFillColor 色阶换算）—— */
+  --text-1: rgba(255, 255, 255, 1);      /* Primary #FFFFFF */
+  --text-2: rgba(255, 255, 255, 0.78);   /* Secondary #C5FFFFFF */
   --text-num: rgba(255, 255, 255, 0.82); /* 数值 */
-  --text-sep: rgba(255, 255, 255, 0.18); /* 分隔符 */
+  --text-sep: rgba(255, 255, 255, 0.14); /* 分隔符（DividerStroke 7% 与可读性折中） */
 
   /* —— 语义色 —— */
   --c-ok: #30d158;      /* 已装最新 */
   --c-warn: #ffd60a;    /* 可更新 */
   --c-idle: #8e8e93;    /* 未装 / 本地源 */
   --c-err: #ff453a;     /* 失败 */
-  --c-primary: #0a84ff; /* 主操作 */
   --c-busy: #ff9f0a;    /* 进行中 */
 
-  /* —— 控件 —— */
-  --btn-hover: rgba(255, 255, 255, 0.09);
-  --btn-active: rgba(255, 255, 255, 0.14);
-  --radius-ctrl: 4px;   /* 控件圆角（winui3） */
-  --radius-pop: 8px;    /* 弹层圆角（winui3） */
+  /* —— WinUI 3 / Fluent 强调色（SystemAccentColor 默认板 · 深色主题：
+        填充控件用 Dark1，深底文字/图标/链接用 Light1） —— */
+  --accent-base: #0078d7;        /* SystemAccentColor：导航选中指示条等纯强调元素 */
+  --accent-fill: #0067c0;        /* SystemAccentColorDark1：Accent 填充按钮底色 */
+  --accent-fill-hover: #1f80ce;  /* fill + TextOnAccentFillColorSecondary 10% 叠加的 CSS 等价 */
+  --accent-fill-pressed: #005ba1;
+  --accent-text: #429ce3;        /* SystemAccentColorLight1 */
+  --accent-text-strong: #76b9ed; /* SystemAccentColorLight2 */
+  --c-primary: var(--accent-text); /* 主操作（沿用旧变量名，语义=深底上的强调色文字/描边） */
+
+  /* —— 控件（WinUI 3 填充/描边色阶换算）—— */
+  --btn-rest: rgba(255, 255, 255, 0.06);    /* ControlFillColorDefault #0FFFFFFF */
+  --btn-hover: rgba(255, 255, 255, 0.06);   /* SubtleFillSecondary #0FFFFFFF */
+  --btn-active: rgba(255, 255, 255, 0.04);  /* SubtleFillTertiary #0AFFFFFF */
+  --stroke-ctrl: rgba(255, 255, 255, 0.07); /* ControlStrokeColorDefault #12FFFFFF（视觉折中） */
+  --radius-ctrl: 4px;   /* 控件圆角（winui3 ControlCorner） */
+  --radius-pop: 8px;    /* 弹层圆角（winui3 OverlayCorner） */
 
   /* —— 字体 —— */
   --font-stack: "MiSans", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
@@ -71,7 +82,7 @@ body {
 }
 
 ::selection {
-  background: rgba(10, 132, 255, 0.35);
+  background: rgba(0, 103, 192, 0.45);
 }
 
 /* 细滚动条（毛玻璃内嵌风格） */

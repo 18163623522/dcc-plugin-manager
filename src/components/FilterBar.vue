@@ -202,7 +202,8 @@ function onSearch(e: Event) {
   transition: border-color 0.15s;
 }
 .search:focus-within {
-  border-color: rgba(10, 132, 255, 0.55);
+  border-color: var(--accent-text);
+  box-shadow: inset 0 -2px 0 0 var(--accent-text);
 }
 .search svg {
   width: 14px;

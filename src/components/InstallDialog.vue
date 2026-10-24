@@ -216,15 +216,15 @@ function confirm() {
   background: rgba(255, 255, 255, 0.05);
 }
 .engine-item.checked {
-  background: rgba(10, 132, 255, 0.1);
-  border-color: rgba(10, 132, 255, 0.35);
+  background: rgba(0, 103, 192, 0.12);
+  border-color: rgba(0, 103, 192, 0.45);
 }
 .engine-item.banned {
   opacity: 0.55;
   cursor: not-allowed;
 }
 .engine-item input {
-  accent-color: var(--c-primary);
+  accent-color: var(--accent-fill);
 }
 .ver {
   font-size: 13px;
@@ -284,27 +284,32 @@ function confirm() {
   margin-top: 16px;
 }
 
+/* Standard / Accent 按钮（WinUI3 四态） */
 .btn {
   height: 30px;
   padding: 0 14px;
-  border: none;
+  border: 1px solid var(--stroke-ctrl);
   border-radius: var(--radius-ctrl);
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--btn-rest);
   color: var(--text-1);
   font-family: var(--font-stack);
   font-size: 12px;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background 0.12s, border-color 0.12s;
 }
 .btn:hover {
   background: var(--btn-hover);
 }
 .btn.primary {
-  background: var(--c-primary);
+  background: var(--accent-fill);
+  border-color: transparent;
   color: #fff;
 }
 .btn.primary:hover {
-  filter: brightness(1.12);
+  background: var(--accent-fill-hover);
+}
+.btn.primary:active {
+  background: var(--accent-fill-pressed);
 }
 .btn.primary:disabled {
   opacity: 0.4;

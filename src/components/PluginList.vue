@@ -3,7 +3,7 @@ import StatusDot from "./StatusDot.vue";
 import EngineChip from "./EngineChip.vue";
 import type { PluginRow } from "../types";
 
-const props = defineProps<{ plugins: PluginRow[] }>();
+defineProps<{ plugins: PluginRow[] }>();
 const emit = defineEmits<{
   /** 行内主操作（安装/更新/重试，随状态变化） */
   primary: [id: string];
@@ -217,8 +217,8 @@ function onlineUrl(p: PluginRow): string | null {
   letter-spacing: 0.02em;
 }
 .host-badge.ue {
-  background: rgba(10, 132, 255, 0.16);
-  color: #6db2ff;
+  background: rgba(0, 103, 192, 0.24);
+  color: var(--accent-text-strong);
 }
 .host-badge.hou {
   background: rgba(255, 159, 10, 0.16);
@@ -299,9 +299,9 @@ function onlineUrl(p: PluginRow): string | null {
   flex: none;
   height: 26px;
   padding: 0 11px;
-  border: none;
+  border: 1px solid var(--stroke-ctrl);
   border-radius: var(--radius-ctrl);
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--btn-rest);
   color: var(--text-2);
   font-family: var(--font-stack);
   font-size: 11.5px;
@@ -315,13 +315,17 @@ function onlineUrl(p: PluginRow): string | null {
 .act:active {
   transform: scale(0.94);
 }
+/* Accent 实底（AccentButtonStyle 深色主题：SystemAccentColorDark1） */
 .act.primary {
-  background: rgba(10, 132, 255, 0.18);
-  color: #6db2ff;
+  background: var(--accent-fill);
+  border-color: transparent;
+  color: #fff;
 }
 .act.primary:hover {
-  background: rgba(10, 132, 255, 0.28);
-  color: #8cc2ff;
+  background: var(--accent-fill-hover);
+}
+.act.primary:active {
+  background: var(--accent-fill-pressed);
 }
 
 .act.icon {

@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { open } from "@tauri-apps/plugin-dialog";
 
-const props = defineProps<{ visible: boolean }>();
+defineProps<{ visible: boolean }>();
 const emit = defineEmits<{
   addLocal: [path: string];
   addGit: [url: string];
@@ -171,8 +171,8 @@ function confirm() {
   transition: border-color 0.15s, background 0.15s;
 }
 .pick-btn:hover {
-  border-color: rgba(10, 132, 255, 0.6);
-  background: rgba(10, 132, 255, 0.06);
+  border-color: var(--accent-text);
+  background: rgba(0, 103, 192, 0.08);
 }
 .pick-btn svg {
   width: 15px;
@@ -201,7 +201,8 @@ function confirm() {
   transition: border-color 0.15s;
 }
 .url-input:focus {
-  border-color: rgba(10, 132, 255, 0.55);
+  border-color: var(--accent-text);
+  box-shadow: inset 0 -2px 0 0 var(--accent-text);
 }
 .url-input::placeholder {
   color: var(--text-sep);
@@ -232,26 +233,33 @@ function confirm() {
   margin-top: 16px;
 }
 
+/* Standard 按钮：ControlFill 6% + ControlStroke 7%，hover 提亮、pressed 减淡 */
 .btn {
   height: 30px;
   padding: 0 14px;
-  border: none;
+  border: 1px solid var(--stroke-ctrl);
   border-radius: var(--radius-ctrl);
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--btn-rest);
   color: var(--text-1);
   font-family: var(--font-stack);
   font-size: 12px;
   cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
 }
 .btn:hover {
   background: var(--btn-hover);
+  border-color: var(--stroke-ctrl);
 }
 .btn.primary {
-  background: var(--c-primary);
+  background: var(--accent-fill);
+  border-color: transparent;
   color: #fff;
 }
 .btn.primary:hover {
-  filter: brightness(1.12);
+  background: var(--accent-fill-hover);
+}
+.btn.primary:active {
+  background: var(--accent-fill-pressed);
 }
 .btn:disabled {
   opacity: 0.45;
